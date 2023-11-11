@@ -1,0 +1,1270 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>S3Lite</name>
+    </assembly>
+    <members>
+        <member name="T:S3Lite.ApiObjects.Bucket">
+            <summary>
+            Amazon S3 bucket.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.Bucket.Name">
+            <summary>
+            The name of the bucket.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.Bucket.CreationDate">
+            <summary>
+            The timestamp from bucket creation.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.Bucket.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.Bucket.#ctor(System.String,System.DateTime)">
+            <summary>
+            Instantiate.
+            </summary>
+            <param name="name">Bucket name.</param>
+            <param name="creation">Creation timestamp.</param>
+        </member>
+        <member name="T:S3Lite.ApiObjects.Buckets">
+            <summary>
+            A collection of buckets.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.Buckets.BucketList">
+            <summary>
+            A list of individual buckets.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.Buckets.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.Buckets.#ctor(System.Collections.Generic.List{S3Lite.ApiObjects.Bucket})">
+            <summary>
+            Instantiate.
+            </summary>
+            <param name="buckets">Buckets.</param>
+        </member>
+        <member name="T:S3Lite.ApiObjects.CommonPrefixes">
+            <summary>
+            Common prefixes.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.CommonPrefixes.Prefixes">
+            <summary>
+            Prefix.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.CommonPrefixes.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.CommonPrefixes.#ctor(System.Collections.Generic.List{System.String})">
+            <summary>
+            Instantiate.
+            </summary>
+            <param name="prefixes">Prefixes.</param>
+        </member>
+        <member name="T:S3Lite.ApiObjects.CreateBucketConfiguration">
+            <summary>
+            Create bucket configuration.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.CreateBucketConfiguration.LocationConstraint">
+            <summary>
+            Location constraint.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.CreateBucketConfiguration.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="T:S3Lite.ApiObjects.Error">
+            <summary>
+            Amazon S3 error.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.Error.Key">
+            <summary>
+            Object key.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.Error.VersionId">
+            <summary>
+            The version identifier for the resource.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.Error.RequestId">
+            <summary>
+            Unique identifier for the request.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.Error.Resource">
+            <summary>
+            The resource incident to the request.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.Error.Code">
+            <summary>
+            Error code.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.Error.Message">
+            <summary>
+            Message associated with the error.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.Error.HttpStatusCode">
+            <summary>
+            HTTP status code.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.Error.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.Error.#ctor(S3Lite.ApiObjects.ErrorCode,System.String,System.String,System.String,System.String)">
+            <summary>
+            Instantiate.
+            </summary>
+            <param name="error">ErrorCode.</param>
+            <param name="key">Key.</param>
+            <param name="versionId">Version ID.</param>
+            <param name="requestId">Request ID.</param>
+            <param name="resource">Resource.</param>
+        </member>
+        <member name="T:S3Lite.ApiObjects.ErrorCode">
+            <summary>
+            Amazon S3 error code.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.AccessDenied">
+            <summary>
+            Access denied.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.AccountProblem">
+            <summary>
+            There is a problem with your AWS account that prevents the operation from completing successfully.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.AllAccessDisabled">
+            <summary>
+            All access to this Amazon S3 resource has been disabled.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.AmbiguousGrantByEmailAddress">
+            <summary>
+            The email address you provided is associated with more than one account.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.AuthorizationHeaderMalformed">
+            <summary>
+            The authorization header you provided is invalid.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.BadDigest">
+            <summary>
+            The Content-MD5 you specified did not match what we received.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.BucketAlreadyExists">
+            <summary>
+            The requested bucket name is not available. The bucket namespace is shared by all users of the system. Please select a different name and try again.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.BucketAlreadyOwnedByYou">
+            <summary>
+            The bucket you tried to create already exists, and you own it.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.BucketNotEmpty">
+            <summary>
+            The bucket you tried to delete is not empty.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.CredentialsNotSupported">
+            <summary>
+            This request does not support credentials.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.CrossLocationLoggingProhibited">
+            <summary>
+            Cross-location logging not allowed. Buckets in one geographic location cannot log information to a bucket in another location.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.EntityTooSmall">
+            <summary>
+            Your proposed upload is smaller than the minimum allowed object size.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.EntityTooLarge">
+            <summary>
+            Your proposed upload exceeds the maximum allowed object size.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.ExpiredToken">
+            <summary>
+            The provided token has expired.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.IllegalVersioningConfigurationException">
+            <summary>
+            Indicates that the versioning configuration specified in the request is invalid.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.IncompleteBody">
+            <summary>
+            You did not provide the number of bytes specified by the Content-Length HTTP header.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.IncorrectNumberOfFilesInPostRequest">
+            <summary>
+            POST requires exactly one file upload per request.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InlineDataTooLarge">
+            <summary>
+            Inline data exceeds the maximum allowed size.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InternalError">
+            <summary>
+            We encountered an internal error. Please try again.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidAccessKeyId">
+            <summary>
+            The AWS access key ID you provided does not exist in our records.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidAddressingHeader">
+            <summary>
+            You must specify the Anonymous role.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidArgument">
+            <summary>
+            Invalid Argument.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidBucketName">
+            <summary>
+            The specified bucket is not valid.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidBucketState">
+            <summary>
+            The request is not valid with the current state of the bucket.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidDigest">
+            <summary>
+            The Content-MD5 you specified is not valid.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidEncryptionAlgorithmError">
+            <summary>
+            The encryption request you specified is not valid. The valid value is AES256.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidLocationConstraint">
+            <summary>
+            The specified location constraint is not valid.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidObjectState">
+            <summary>
+            The operation is not valid for the current state of the object.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidPart">
+            <summary>
+            One or more of the specified parts could not be found. The part might not have been uploaded, or the specified entity tag might not have matched the part's entity tag.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidPartOrder">
+            <summary>
+            The list of parts was not in ascending order. Parts list must be specified in order by part number.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidPayer">
+            <summary>
+            All access to this object has been disabled.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidPolicyDocument">
+            <summary>
+            The content of the form does not meet the conditions specified in the policy document.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidRange">
+            <summary>
+            The requested range cannot be satisfied.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidRequest">
+            <summary>
+            Your request is invalid.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidSecurity">
+            <summary>
+            The provided security credentials are not valid.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidSOAPRequest">
+            <summary>
+            The SOAP request body is invalid.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidStorageClass">
+            <summary>
+            The storage class you specified is not valid.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidTargetBucketForLogging">
+            <summary>
+            The target bucket for logging does not exist, is not owned by you, or does not have the appropriate grants for the log-delivery group.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidToken">
+            <summary>
+            The provided token is malformed or otherwise invalid.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.InvalidURI">
+            <summary>
+            Couldn't parse the specified URI.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.KeyTooLongError">
+            <summary>
+            Your key is too long.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.MalformedACLError">
+            <summary>
+            The XML you provided was not well-formed or did not validate against our published schema.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.MalformedPOSTRequest">
+            <summary>
+            The body of your POST request is not well-formed multipart/form-data.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.MalformedXML">
+            <summary>
+            The XML you provided was not well-formed or did not validate against our published schema.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.MaxMessageLengthExceeded">
+            <summary>
+            Your request was too big.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.MaxPostPreDataLengthExceededError">
+            <summary>
+            Your POST request fields preceding the upload file were too large.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.MetadataTooLarge">
+            <summary>
+            Your metadata headers exceed the maximum allowed metadata size.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.MethodNotAllowed">
+            <summary>
+            The specified method is not allowed against this resource.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.MissingAttachment">
+            <summary>
+            A SOAP attachment was expected, but none were found.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.MissingContentLength">
+            <summary>
+            You must provide the Content-Length HTTP header.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.MissingRequestBodyError">
+            <summary>
+            Request body is empty.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.MissingSecurityElement">
+            <summary>
+            The SOAP 1.1 request is missing a security element.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.MissingSecurityHeader">
+            <summary>
+            Your request is missing a required header.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.NoLoggingStatusForKey">
+            <summary>
+            There is no such thing as a logging status subresource for a key.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.NoSuchBucket">
+            <summary>
+            The specified bucket does not exist.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.NoSuchBucketPolicy">
+            <summary>
+            The specified bucket does not have a bucket policy.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.NoSuchKey">
+            <summary>
+            The specified key does not exist.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.NoSuchLifecycleConfiguration">
+            <summary>
+            The lifecycle configuration does not exist.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.NoSuchUpload">
+            <summary>
+            The specified multipart upload does not exist. The upload ID might be invalid, or the multipart upload might have been aborted or completed.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.NoSuchVersion">
+            <summary>
+            The version ID specified in the request does not match an existing version.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.NotImplemented">
+            <summary>
+            A header you provided implies functionality that is not implemented.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.NotSignedUp">
+            <summary>
+            Your account is not signed up for the Amazon S3 service.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.OperationAborted">
+            <summary>
+            A conflicting conditional operation is currently in progress against this resource. Try again.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.PermanentRedirect">
+            <summary>
+            The bucket you are attempting to access must be addressed using the specified endpoint. Send all future requests to this endpoint.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.PreconditionFailed">
+            <summary>
+            At least one of the preconditions you specified did not hold.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.Redirect">
+            <summary>
+            Temporary redirect.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.RestoreAlreadyInProgress">
+            <summary>
+            Object restore is already in progress.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.RequestIsNotMultiPartContent">
+            <summary>
+            Bucket POST must be of the enclosure-type multipart/form-data.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.RequestTimeout">
+            <summary>
+            Your socket connection to the server was not read from or written to within the timeout period.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.RequestTimeTooSkewed">
+            <summary>
+            The difference between the request time and the server's time is too large.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.RequestTorrentOfBucketError">
+            <summary>
+            Requesting the torrent file of a bucket is not permitted.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.SignatureDoesNotMatch">
+            <summary>
+            The request signature we calculated does not match the signature you provided.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.ServiceUnavailable">
+            <summary>
+            Service unavailable.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.SlowDown">
+            <summary>
+            Reduce your request rate.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.TemporaryRedirect">
+            <summary>
+            You are being redirected to the bucket while DNS updates.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.TokenRefreshRequired">
+            <summary>
+            The provided token must be refreshed.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.TooManyBuckets">
+            <summary>
+            You have attempted to create more buckets than allowed.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.UnexpectedContent">
+            <summary>
+            This request does not support content.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.UnresolvableGrantByEmailAddress">
+            <summary>
+            The email address you provided does not match any account on record.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.UserKeyMustBeSpecified">
+            <summary>
+            The bucket POST must contain the specified field name. If it is specified, check the order of the fields.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.ErrorCode.ServerSideEncryptionConfigurationNotFoundError">
+            <summary>
+            The server side encryption configuration was not found.
+            </summary>
+        </member>
+        <member name="T:S3Lite.ApiObjects.ListAllMyBucketsResult">
+            <summary>
+            Result from a ListAllMyBuckets request.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ListAllMyBucketsResult.Owner">
+            <summary>
+            Bucket owner.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ListAllMyBucketsResult.Buckets">
+            <summary>
+            Buckets owned by the user.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.ListAllMyBucketsResult.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.ListAllMyBucketsResult.#ctor(S3Lite.ApiObjects.Owner,S3Lite.ApiObjects.Buckets)">
+            <summary>
+            Instantiate.
+            </summary>
+            <param name="owner">Owmer/</param>
+            <param name="buckets">Buckets.</param>
+        </member>
+        <member name="T:S3Lite.ApiObjects.ListBucketResult">
+            <summary>
+            Result from a ListBucket operation.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ListBucketResult.Name">
+            <summary>
+            Name of the bucket.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ListBucketResult.Prefix">
+            <summary>
+            Prefix specified in the request.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ListBucketResult.Marker">
+            <summary>
+            Marker.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ListBucketResult.KeyCount">
+            <summary>
+            Number of keys.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ListBucketResult.MaxKeys">
+            <summary>
+            Maximum number of keys.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ListBucketResult.Delimiter">
+            <summary>
+            Delimiter.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ListBucketResult.EncodingType">
+            <summary>
+            Encoding type.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ListBucketResult.IsTruncated">
+            <summary>
+            Indicates if the response is truncated.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ListBucketResult.NextContinuationToken">
+            <summary>
+            The next continuation token to supply to continue the query.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ListBucketResult.Contents">
+            <summary>
+            Bucket contents.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ListBucketResult.CommonPrefixes">
+            <summary>
+            Common prefixes.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ListBucketResult.BucketRegion">
+            <summary>
+            Bucket region string.  Not included in the XML, but rather as the HTTP header x-amz-bucket-region.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.ListBucketResult.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.ListBucketResult.#ctor(System.String,System.Collections.Generic.List{S3Lite.ApiObjects.ObjectMetadata},System.Int32,System.Int32,System.String,System.String,System.String,System.Boolean,System.String,S3Lite.ApiObjects.CommonPrefixes,System.String)">
+            <summary>
+            Instantiate.
+            </summary>
+            <param name="name">Name.</param>
+            <param name="contents">Contents.</param>
+            <param name="keyCount">Key count.</param>
+            <param name="maxKeys">Max keys.</param>
+            <param name="prefix">Prefix.</param>
+            <param name="marker">Marker.</param>
+            <param name="delimiter">Delimiter.</param>
+            <param name="isTruncated">Is truncated.</param>
+            <param name="nextToken">Next continuation token.</param>
+            <param name="prefixes">Prefixes</param>
+            <param name="bucketRegion">Bucket region.</param>
+        </member>
+        <member name="M:S3Lite.ApiObjects.ListBucketResult.ShouldSerializeMarker">
+            <summary>
+            Helper method for XML serialization.
+            </summary>
+            <returns>Boolean</returns>
+        </member>
+        <member name="M:S3Lite.ApiObjects.ListBucketResult.ShouldSerializeNextContinuationToken">
+            <summary>
+            Helper method for XML serialization.
+            </summary>
+            <returns>Boolean</returns>
+        </member>
+        <member name="M:S3Lite.ApiObjects.ListBucketResult.ShouldSerializeCommonPrefixes">
+            <summary>
+            Helper method for XML serialization.
+            </summary>
+            <returns>Boolean</returns>
+        </member>
+        <member name="T:S3Lite.ApiObjects.ObjectMetadata">
+            <summary>
+            Object metadata.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ObjectMetadata.Key">
+            <summary>
+            Object key.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ObjectMetadata.LastModified">
+            <summary>
+            Timestamp from the last modification of the resource.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ObjectMetadata.ETag">
+            <summary>
+            ETag of the resource.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ObjectMetadata.ContentType">
+            <summary>
+            Content type.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ObjectMetadata.Size">
+            <summary>
+            The size in bytes of the resource.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ObjectMetadata.StorageClass">
+            <summary>
+            The class of storage where the resource resides.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ObjectMetadata.Owner">
+            <summary>
+            Object owner.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.ObjectMetadata.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.ObjectMetadata.#ctor(System.String,System.DateTime,System.String,System.Int64,S3Lite.ApiObjects.Owner,S3Lite.ApiObjects.StorageClassEnum)">
+            <summary>
+            Instantiate.
+            </summary>
+            <param name="key">Key.</param>
+            <param name="lastModified">Last modified.</param>
+            <param name="eTag">ETag.</param>
+            <param name="size">Size.</param>
+            <param name="owner">Owner.</param>
+            <param name="storageClass">Storage class.</param>
+        </member>
+        <member name="T:S3Lite.ApiObjects.Owner">
+            <summary>
+            Resource owner.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.Owner.ID">
+            <summary>
+            ID of the owner.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.Owner.DisplayName">
+            <summary>
+            Display name of the owner.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.Owner.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.Owner.#ctor(System.String,System.String)">
+            <summary>
+            Instantiate.
+            </summary>
+            <param name="id">ID.</param>
+            <param name="displayName">Display name.</param>
+        </member>
+        <member name="T:S3Lite.ApiObjects.StorageClassEnum">
+            <summary>
+            Storage classes used by S3. 
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.StorageClassEnum.STANDARD">
+            <summary>
+            Standard.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.StorageClassEnum.REDUCED_REDUNDANCY">
+            <summary>
+            Reduced redundancy.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.StorageClassEnum.GLACIER">
+            <summary>
+            Glacier.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.StorageClassEnum.STANDARD_IA">
+            <summary>
+            Standard IA.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.StorageClassEnum.ONEZONE_IA">
+            <summary>
+            One zone IA.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.StorageClassEnum.INTELLIGENT_TIERING">
+            <summary>
+            Intelligent tiering.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.StorageClassEnum.DEEP_ARCHIVE">
+            <summary>
+            Deep archive.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ApiObjects.StorageClassEnum.OUTPOSTS">
+            <summary>
+            Outposts.
+            </summary>
+        </member>
+        <member name="T:S3Lite.BucketApis">
+            <summary>
+            Amazon S3 bucket APIs.
+            </summary>
+        </member>
+        <member name="M:S3Lite.BucketApis.#ctor(S3Lite.S3Client)">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.BucketApis.ExistsAsync(System.String,System.Collections.Specialized.NameValueCollection,System.Threading.CancellationToken)">
+            <summary>
+            List the contents of a bucket.
+            </summary>
+            <param name="bucket">Bucket.</param>
+            <param name="headers">Additional headers to add to the request.</param>
+            <param name="token">Cancellation token.</param>
+            <returns>Boolean indicating existence.</returns>
+        </member>
+        <member name="M:S3Lite.BucketApis.ListAsync(System.String,System.String,System.String,System.String,System.Int32,System.Collections.Specialized.NameValueCollection,System.Threading.CancellationToken)">
+            <summary>
+            List the contents of a bucket.
+            </summary>
+            <param name="bucket">Bucket.</param>
+            <param name="prefix">Prefix.</param>
+            <param name="marker">Marker.</param>
+            <param name="continuationToken">Continuation token.</param>
+            <param name="maxKeys">Maximum key count.</param>
+            <param name="headers">Additional headers to add to the request.</param>
+            <param name="token">Cancellation token.</param>
+            <returns>List bucket result.</returns>
+        </member>
+        <member name="M:S3Lite.BucketApis.WriteAsync(System.String,System.String,System.Collections.Specialized.NameValueCollection,System.Threading.CancellationToken)">
+            <summary>
+            Create a bucket.
+            </summary>
+            <param name="bucket">Bucket.</param>
+            <param name="region">Region.</param>
+            <param name="headers">Additional headers to add to the request.</param>
+            <param name="token">Cancellation token.</param>
+            <returns>Task.</returns>
+        </member>
+        <member name="M:S3Lite.BucketApis.DeleteAsync(System.String,System.Collections.Specialized.NameValueCollection,System.Threading.CancellationToken)">
+            <summary>
+            Delete a bucket.
+            </summary>
+            <param name="bucket">Bucket.</param>
+            <param name="headers">Additional headers to add to the request.</param>
+            <param name="token">Cancellation token.</param>
+            <returns>List bucket result.</returns>
+        </member>
+        <member name="T:S3Lite.DebugSettings">
+            <summary>
+            Debug settings.
+            </summary>
+        </member>
+        <member name="P:S3Lite.DebugSettings.Signatures">
+            <summary>
+            Enable or disable signature generation debugging.
+            </summary>
+        </member>
+        <member name="M:S3Lite.DebugSettings.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="T:S3Lite.ObjectApis">
+            <summary>
+            Amazon S3 object APIs.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ObjectApis.#ctor(S3Lite.S3Client)">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ObjectApis.ExistsAsync(System.String,System.String,System.String,System.Collections.Specialized.NameValueCollection,System.Threading.CancellationToken)">
+            <summary>
+            Check object existence.
+            </summary>
+            <param name="bucket">Bucket.</param>
+            <param name="key">Key.</param>
+            <param name="versionId">Version ID.</param>
+            <param name="headers">Additional headers to add to the request.</param>
+            <param name="token">Cancellation token.</param>
+            <returns>Boolean indicating existence.</returns>
+        </member>
+        <member name="M:S3Lite.ObjectApis.GetMetadataAsync(System.String,System.String,System.String,System.Collections.Specialized.NameValueCollection,System.Threading.CancellationToken)">
+            <summary>
+            Get object metadata.
+            </summary>
+            <param name="bucket">Bucket.</param>
+            <param name="key">Key.</param>
+            <param name="versionId">Version ID.</param>
+            <param name="headers">Additional headers to add to the request.</param>
+            <param name="token">Cancellation token.</param>
+            <returns>Object metadata.</returns>
+        </member>
+        <member name="M:S3Lite.ObjectApis.GetAsync(System.String,System.String,System.String,System.Collections.Specialized.NameValueCollection,System.Threading.CancellationToken)">
+            <summary>
+            Get object.
+            </summary>
+            <param name="bucket">Bucket.</param>
+            <param name="key">Key.</param>
+            <param name="versionId">Version ID.</param>
+            <param name="headers">Additional headers to add to the request.</param>
+            <param name="token">Cancellation token.</param>
+            <returns>Object data.</returns>
+        </member>
+        <member name="M:S3Lite.ObjectApis.WriteAsync(System.String,System.String,System.Byte[],System.String,System.String,System.Collections.Specialized.NameValueCollection,System.Threading.CancellationToken)">
+            <summary>
+            Write object.
+            </summary>
+            <param name="bucket">Bucket.</param>
+            <param name="key">Key.</param>
+            <param name="data">Data.</param>
+            <param name="contentType">Content type.</param>
+            <param name="versionId">Version ID.</param>
+            <param name="headers">Additional headers to add to the request.</param>
+            <param name="token">Cancellation token.</param>
+            <returns>Task.</returns>
+        </member>
+        <member name="M:S3Lite.ObjectApis.DeleteAsync(System.String,System.String,System.String,System.Collections.Specialized.NameValueCollection,System.Threading.CancellationToken)">
+            <summary>
+            Delete object.
+            </summary>
+            <param name="bucket">Bucket.</param>
+            <param name="key">Key.</param>
+            <param name="versionId">Version ID.</param>
+            <param name="headers">Additional headers to add to the request.</param>
+            <param name="token">Cancellation token.</param>
+            <returns>Task.</returns>
+        </member>
+        <member name="T:S3Lite.ProtocolEnum">
+            <summary>
+            Protocol.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ProtocolEnum.Http">
+            <summary>
+            HTTP.
+            </summary>
+        </member>
+        <member name="F:S3Lite.ProtocolEnum.Https">
+            <summary>
+            HTTPS.
+            </summary>
+        </member>
+        <member name="T:S3Lite.RequestStyleEnum">
+            <summary>
+            Request style.
+            </summary>
+        </member>
+        <member name="F:S3Lite.RequestStyleEnum.PathStyle">
+            <summary>
+            Path style.
+            </summary>
+        </member>
+        <member name="F:S3Lite.RequestStyleEnum.VirtualHostedStyle">
+            <summary>
+            Virtual hosted style.
+            </summary>
+        </member>
+        <member name="T:S3Lite.S3Client">
+            <summary>
+            Amazon S3 storage client.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.StreamBufferSize">
+            <summary>
+            Stream buffer size.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.Logger">
+            <summary>
+            Method to invoke to send log messages.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.AccessKey">
+            <summary>
+            Access key, generally a base64-encoded string.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.SecretKey">
+            <summary>
+            Secret access key, generally a base64-encoded string.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.SignatureVersion">
+            <summary>
+            Signature version.  Default is version 4.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.RequestStyle">
+            <summary>
+            Request style.  Default is virtual hosted style.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.Region">
+            <summary>
+            Region.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.Protocol">
+            <summary>
+            Protocol, e.g. HTTP or HTTPS.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.Hostname">
+            <summary>
+            Hostname.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.Port">
+            <summary>
+            Port.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.Service">
+            <summary>
+            Service APIs.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.Bucket">
+            <summary>
+            Bucket APIs.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.Object">
+            <summary>
+            Object APIs.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.Debug">
+            <summary>
+            Debug settings.
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.Serializer">
+            <summary>
+            Serialization helper.
+            </summary>
+        </member>
+        <member name="M:S3Lite.S3Client.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.S3Client.WithLogger(System.Action{System.String})">
+            <summary>
+            Specify the logger method.
+            </summary>
+            <param name="logger">Logger method.</param>
+            <returns>S3Client.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.WithRegion(System.String)">
+            <summary>
+            Specify the region.
+            </summary>
+            <param name="region">Region string.</param>
+            <returns>S3Client.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.WithAccessKey(System.String)">
+            <summary>
+            Specify the access key.
+            </summary>
+            <param name="accessKey">Access key.</param>
+            <returns>S3Client.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.WithSecretKey(System.String)">
+            <summary>
+            Specify the secret key.
+            </summary>
+            <param name="secretKey">Secret key.</param>
+            <returns>S3Client.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.WithSignatureVersion(S3Lite.SignatureVersionEnum)">
+            <summary>
+            Specify the signature version.
+            </summary>
+            <param name="version">Version.</param>
+            <returns>S3Client.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.WithRequestStyle(S3Lite.RequestStyleEnum)">
+            <summary>
+            Specify the request style.
+            </summary>
+            <param name="style">Request style.</param>
+            <returns>S3Client.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.WithProtocol(S3Lite.ProtocolEnum)">
+            <summary>
+            Specify the protocol.
+            </summary>
+            <param name="protocol">Protocol.</param>
+            <returns>S3Client.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.WithHostname(System.String)">
+            <summary>
+            Specify the hostname.
+            </summary>
+            <param name="hostname">Hostname.</param>
+            <returns>S3Client.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.WithPort(System.Int32)">
+            <summary>
+            Specify the port.
+            </summary>
+            <param name="port">Port.</param>
+            <returns>S3Client.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.EnableSignatureDebug">
+            <summary>
+            Enable signature debugging.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:S3Lite.S3Client.BuildUrl(System.String,System.String,System.String)">
+            <summary>
+            Build the URL given the request style, protocol, hostname, port, region, bucket, and key.
+            </summary>
+            <param name="bucket">Bucket.</param>
+            <param name="key">Key.</param>
+            <param name="versionId">Version ID.</param>
+            <returns>String.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.BuildRestRequest(System.Net.Http.HttpMethod,System.String,System.String)">
+            <summary>
+            Create a RESTful request with standard headers.
+            </summary>
+            <param name="method">HTTP method.</param>
+            <param name="url">URL.</param>
+            <param name="contentType">Content type.</param>
+            <returns>RestRequest.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.BuildRestResponse(RestWrapper.RestRequest,System.Byte[],System.Threading.CancellationToken)">
+            <summary>
+            Construct an authorization header and submit RESTful request to retrieve a response.
+            </summary>
+            <param name="req">RestRequest.</param>
+            <param name="data">Byte array containing data.</param>
+            <param name="token">Cancellation token.</param>
+            <returns>RestResponse.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.Sha256(System.IO.Stream)">
+            <summary>
+            Generate a SHA256 hash for a stream.
+            </summary>
+            <param name="stream">Stream.</param>
+            <returns>Hash.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.Sha256(System.Byte[])">
+            <summary>
+            Generate a SHA256 hash for a byte array.
+            </summary>
+            <param name="data">Byte array.</param>
+            <returns>Hash.</returns>
+        </member>
+        <member name="T:S3Lite.SerializationHelper">
+            <summary>
+            Default serialization helper.
+            </summary>
+        </member>
+        <member name="M:S3Lite.SerializationHelper.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.SerializationHelper.InstantiateConverter">
+            <summary>
+            Instantiation method to support fixups for various environments, e.g. Unity.
+            </summary>
+        </member>
+        <member name="M:S3Lite.SerializationHelper.DeserializeJson``1(System.String)">
+            <summary>
+            Deserialize JSON to an instance.
+            </summary>
+            <typeparam name="T">Type.</typeparam>
+            <param name="json">JSON string.</param>
+            <returns>Instance.</returns>
+        </member>
+        <member name="M:S3Lite.SerializationHelper.SerializeJson(System.Object,System.Boolean)">
+            <summary>
+            Serialize object to JSON.
+            </summary>
+            <param name="obj">Object.</param>
+            <param name="pretty">Pretty print.</param>
+            <returns>JSON.</returns>
+        </member>
+        <member name="M:S3Lite.SerializationHelper.CopyObject``1(System.Object)">
+            <summary>
+            Copy an object.
+            </summary>
+            <typeparam name="T">Type.</typeparam>
+            <param name="o">Object.</param>
+            <returns>Instance.</returns>
+        </member>
+        <member name="M:S3Lite.SerializationHelper.DeserializeXml``1(System.Byte[])">
+            <summary>
+            Deserialize XML.
+            </summary>
+            <typeparam name="T">Type.</typeparam>
+            <param name="bytes">XML data.</param>
+            <returns>Instance.</returns>
+        </member>
+        <member name="M:S3Lite.SerializationHelper.DeserializeXml``1(System.String)">
+            <summary>
+            Deserialize XML.
+            </summary>
+            <typeparam name="T">Type.</typeparam>
+            <param name="xml">XML string.</param>
+            <returns>Instance.</returns>
+        </member>
+        <member name="M:S3Lite.SerializationHelper.SerializeXml(System.Object,System.Boolean)">
+            <summary>
+            Serialize XML.
+            </summary>
+            <param name="obj">Object.</param>
+            <param name="pretty">Pretty print.</param>
+            <returns>XML string.</returns>
+        </member>
+        <member name="T:S3Lite.ServiceApis">
+            <summary>
+            Amazon S3 service APIs.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ServiceApis.#ctor(S3Lite.S3Client)">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ServiceApis.ListBucketsAsync(System.Collections.Specialized.NameValueCollection,System.Threading.CancellationToken)">
+            <summary>
+            List buckets.
+            </summary>
+            <param name="headers">Additional headers to add to the request.</param>
+            <param name="token">Cancellation token.</param>
+            <returns>List my buckets result.</returns>
+        </member>
+        <member name="T:S3Lite.SignatureVersionEnum">
+            <summary>
+            Signature version.
+            </summary>
+        </member>
+        <member name="F:S3Lite.SignatureVersionEnum.Version2">
+            <summary>
+            Version 2.
+            </summary>
+        </member>
+        <member name="F:S3Lite.SignatureVersionEnum.Version4">
+            <summary>
+            Version 4.
+            </summary>
+        </member>
+    </members>
+</doc>
