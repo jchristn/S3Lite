@@ -1,16 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Inputty" Version="1.0.10" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Inputty" Version="1.0.10" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\S3Lite\S3Lite.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\S3Lite\S3Lite.csproj" />
+	</ItemGroup>
 
 </Project>
