@@ -24,6 +24,8 @@
             _Region =    Inputty.GetString("Region     :", _Region, false);
             _AccessKey = Inputty.GetString("Access key :", _AccessKey, false);
             _SecretKey = Inputty.GetString("Secret key :", _SecretKey, false);
+            Console.WriteLine("");
+            Console.WriteLine("Enter the name of a new bucket, not an existing one");
             _Bucket =    Inputty.GetString("Bucket     :", _Bucket, false);
             
             _S3 = new S3Client()

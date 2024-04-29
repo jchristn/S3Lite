@@ -53,7 +53,6 @@ namespace S3Lite
         {
             string header = _Header + "ListBucketsAsync ";
 
-            (bool, string) ret = new(false, null);
             string url = _Client.BuildUrl();
 
             using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Get, url))

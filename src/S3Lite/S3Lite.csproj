@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
-		<Version>1.0.1</Version>
+		<TargetFrameworks>netstandard2.1;net6.0;net7.0;net8.0</TargetFrameworks>
+		<Version>1.0.2</Version>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<DocumentationFile>S3Lite.xml</DocumentationFile>
 		<Authors>Joel Christner</Authors>
@@ -37,7 +37,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="AWSSignatureGenerator" Version="1.0.1" />
+	  <PackageReference Include="AWSSignatureGenerator" Version="1.0.3" />
 	  <PackageReference Include="PrettyId" Version="1.0.2" />
 	  <PackageReference Include="RestWrapper" Version="3.0.19" />
 	</ItemGroup>

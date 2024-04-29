@@ -453,7 +453,7 @@
         {
             string header = _Header + req.Method.ToString() + " " + req.Url + ": ";
             string timestamp = DateTime.UtcNow.ToString(Constants.TimestampFormatCompact);
-            string hash = Convert.ToHexString(Sha256(data)).ToLower();
+            string hash = BytesToHexString(Sha256(data)).ToLower();
 
             Uri uri = new Uri(req.Url);
 
@@ -515,7 +515,10 @@
 
         internal WebException WebExceptionBuilder(int? statusCode, string url, string reqBody, string respBody)
         {
-            Logger?.Invoke(_Header + "creating web exception for status " + (statusCode == null ? "(null)" : statusCode.Value) + " URL " + url);
+            string statusStr = "(null)";
+            if (statusCode != null) statusStr = statusCode.Value.ToString();
+
+            Logger?.Invoke(_Header + "creating web exception for status " + statusStr + " URL " + url);
 
             WebException ret;
             
@@ -569,7 +572,7 @@
         /// <returns>Hash.</returns>
         internal byte[] Sha256(Stream stream)
         {
-            if (stream == null) return Convert.FromHexString(Constants.EmptySha256Hash);
+            if (stream == null) return BytesFromHexString(Constants.EmptySha256Hash);
 
             stream.Seek(0, SeekOrigin.Begin);
 
@@ -699,6 +702,26 @@
                 default:
                     return "An unknown HTTP status code of " + statusCode.Value + " was returned for URL: " + url;
             }
+        }
+
+        private string BytesToHexString(byte[] bytes)
+        {
+            // NOT supported in netstandard2.1!
+            // return Convert.ToHexString(bytes);  
+
+            return BitConverter.ToString(bytes).Replace("-", "");
+        }
+
+        private byte[] BytesFromHexString(string hex)
+        {
+            // NOT supported in netstandard2.1!
+            // return Convert.FromHexString(hex);
+
+            int chars = hex.Length;
+            byte[] bytes = new byte[chars / 2];
+            for (int i = 0; i < chars; i += 2)
+                bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
+            return bytes;
         }
 
         #endregion
