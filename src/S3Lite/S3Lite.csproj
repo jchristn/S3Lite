@@ -1,13 +1,13 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFrameworks>netstandard2.1;net6.0;net7.0;net8.0</TargetFrameworks>
-		<Version>1.0.2</Version>
+		<Version>1.0.3</Version>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<DocumentationFile>S3Lite.xml</DocumentationFile>
 		<Authors>Joel Christner</Authors>
 		<Description>Lightweight Amazon S3 client without all the heft and dependency drag of the official library.</Description>
-		<Copyright>(c)2023 Joel Christner</Copyright>
+		<Copyright>(c)2024 Joel Christner</Copyright>
 		<PackageProjectUrl>https://github.com/jchristn/s3lite</PackageProjectUrl>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 		<PackageIcon>icon.png</PackageIcon>
@@ -39,7 +39,7 @@
 	<ItemGroup>
 	  <PackageReference Include="AWSSignatureGenerator" Version="1.0.3" />
 	  <PackageReference Include="PrettyId" Version="1.0.2" />
-	  <PackageReference Include="RestWrapper" Version="3.0.19" />
+	  <PackageReference Include="RestWrapper" Version="3.0.21" />
 	</ItemGroup>
 
 	<ItemGroup>
