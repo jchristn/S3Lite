@@ -24,9 +24,7 @@
         static SignatureVersionEnum _SignatureVersion = SignatureVersionEnum.Version4;
 
         static S3Client _S3 = null;
-        static int _NumFiles = 5000;
         static bool _Logging = true;
-        static bool _Cleanup = false;
 
         private static List<string> _ValidStorageTypes = new List<string>
         {

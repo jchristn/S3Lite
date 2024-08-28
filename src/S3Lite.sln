@@ -9,6 +9,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.S3Compatible", "Test.S
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.S3", "Test.S3\Test.S3.csproj", "{4E09CB5A-9C58-471E-ABFD-807F230CFE0B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test.Script", "Test.Script\Test.Script.csproj", "{D0394F1A-14DE-4F1E-A3A4-9E82C47506EF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test.LargeEnumeration", "Test.LargeEnumeration\Test.LargeEnumeration.csproj", "{DDCD7E92-58B3-43B1-9C3F-68232B04F50C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +31,14 @@ Global
 		{4E09CB5A-9C58-471E-ABFD-807F230CFE0B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4E09CB5A-9C58-471E-ABFD-807F230CFE0B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4E09CB5A-9C58-471E-ABFD-807F230CFE0B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D0394F1A-14DE-4F1E-A3A4-9E82C47506EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0394F1A-14DE-4F1E-A3A4-9E82C47506EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0394F1A-14DE-4F1E-A3A4-9E82C47506EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0394F1A-14DE-4F1E-A3A4-9E82C47506EF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DDCD7E92-58B3-43B1-9C3F-68232B04F50C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DDCD7E92-58B3-43B1-9C3F-68232B04F50C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DDCD7E92-58B3-43B1-9C3F-68232B04F50C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DDCD7E92-58B3-43B1-9C3F-68232B04F50C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
