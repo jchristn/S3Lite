@@ -740,6 +740,12 @@
             <param name="owner">Owner.</param>
             <param name="storageClass">Storage class.</param>
         </member>
+        <member name="M:S3Lite.ApiObjects.ObjectMetadata.ToString">
+            <summary>
+            Create a human-readable string of the object.
+            </summary>
+            <returns>String.</returns>
+        </member>
         <member name="T:S3Lite.ApiObjects.Owner">
             <summary>
             Resource owner.
@@ -839,7 +845,7 @@
             <param name="prefix">Prefix.</param>
             <param name="marker">Marker.</param>
             <param name="continuationToken">Continuation token.</param>
-            <param name="maxKeys">Maximum key count.</param>
+            <param name="maxKeys">Maximum key count.  Must be greater than zero and less than or equal to 1000.</param>
             <param name="headers">Additional headers to add to the request.</param>
             <param name="token">Cancellation token.</param>
             <returns>List bucket result.</returns>

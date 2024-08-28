@@ -102,7 +102,7 @@
         /// <param name="prefix">Prefix.</param>
         /// <param name="marker">Marker.</param>
         /// <param name="continuationToken">Continuation token.</param>
-        /// <param name="maxKeys">Maximum key count.</param>
+        /// <param name="maxKeys">Maximum key count.  Must be greater than zero and less than or equal to 1000.</param>
         /// <param name="headers">Additional headers to add to the request.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>List bucket result.</returns>
@@ -116,40 +116,15 @@
             CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(bucket)) throw new ArgumentNullException(nameof(bucket));
-            if (maxKeys < 1) throw new ArgumentOutOfRangeException(nameof(maxKeys));
+            if (maxKeys < 1 || maxKeys > 1000) throw new ArgumentOutOfRangeException(nameof(maxKeys));
 
             string header = _Header + "List ";
 
-            string url = _Client.BuildUrl(bucket, null, null);
+            string url = _Client.BuildUrl(bucket, null, null) + "?list-type=2&max-keys=" + maxKeys;
 
-            #region Query
-
-            bool queryAdded = false;
-            if (!String.IsNullOrEmpty(prefix))
-            {
-                if (!queryAdded) url += "?";
-                else url += "&";
-                url += "prefix=" + prefix;
-                queryAdded = true;
-            }
-
-            if (!String.IsNullOrEmpty(marker))
-            {
-                if (!queryAdded) url += "?";
-                else url += "&";
-                url += "marker=" + marker;
-                queryAdded = true;
-            }
-
-            if (!String.IsNullOrEmpty(continuationToken))
-            {
-                if (!queryAdded) url += "?";
-                else url += "&";
-                url += "continuation-token=" + continuationToken;
-                queryAdded = true;
-            }
-
-            #endregion
+            if (!String.IsNullOrEmpty(prefix)) url += "&prefix=" + prefix;
+            if (!String.IsNullOrEmpty(marker)) url += "&marker=" + marker;
+            if (!String.IsNullOrEmpty(continuationToken)) url += "&continuation-token=" + Helpers.UriEncode(continuationToken);
 
             using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Get, url))
             {

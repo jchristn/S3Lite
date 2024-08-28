@@ -79,8 +79,6 @@
             string continuationToken = null;
             List<ObjectMetadata> objs = new List<ObjectMetadata>();
 
-            Console.WriteLine("BLOBs:");
-
             while (true)
             {
                 ListBucketResult lbr = await _S3.Bucket.ListAsync(_Bucket, prefix, null, continuationToken);
@@ -104,9 +102,11 @@
                 }
             }
 
+            /*
             Console.WriteLine("Objects:");
             foreach (ObjectMetadata md in objs)
                 Console.WriteLine("| " + md.Key);
+            */
 
             Console.WriteLine("");
             Console.WriteLine(objs.Count + " objects");

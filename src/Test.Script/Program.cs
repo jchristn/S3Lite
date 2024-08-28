@@ -24,7 +24,7 @@
         static SignatureVersionEnum _SignatureVersion = SignatureVersionEnum.Version4;
 
         static S3Client _S3 = null;
-        static bool _Logging = true;
+        static bool _Logging = false;
 
         private static List<string> _ValidStorageTypes = new List<string>
         {
@@ -105,7 +105,7 @@
             }
             else
             {
-                await _S3.Object.WriteAsync("root.txt", "text/plain", Encoding.UTF8.GetBytes("file root.txt"));
+                await _S3.Object.WriteAsync(_Bucket, "root.txt", Encoding.UTF8.GetBytes("file root.txt"));
                 Console.WriteLine("| Created file root.txt");
             }
 

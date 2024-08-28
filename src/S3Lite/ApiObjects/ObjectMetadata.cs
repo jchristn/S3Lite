@@ -124,6 +124,24 @@
 
         #region Public-Methods
 
+        /// <summary>
+        /// Create a human-readable string of the object.
+        /// </summary>
+        /// <returns>String.</returns>
+        public override string ToString()
+        {
+            string ret =
+                "---" + Environment.NewLine +
+                "   Key            : " + Key + Environment.NewLine +
+                "   Content Type   : " + ContentType + Environment.NewLine +
+                "   Content Length : " + Size + Environment.NewLine +
+                "   ETag           : " + ETag + Environment.NewLine +
+                "   Storage Class  : " + StorageClass.ToString() + Environment.NewLine +
+                "   Last Modified  : " + LastModified.ToString("yyyy-MM-dd HH:mm:ss") + Environment.NewLine;;
+
+            return ret;
+        }
+
         #endregion
 
         #region Private-Methods
