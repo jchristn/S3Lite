@@ -137,7 +137,7 @@
 
                         ObjectMetadata ret = new ObjectMetadata();
                         ret.Key = key;
-                        ret.Size = resp.ContentLength;
+                        ret.Size = resp.ContentLength != null ? resp.ContentLength.Value : 0;
                         ret.ContentType = resp.ContentType;
 
                         if (resp.Headers.AllKeys.Contains("etag"))

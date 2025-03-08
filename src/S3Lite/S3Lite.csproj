@@ -1,13 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>netstandard2.1;net6.0;net7.0;net8.0</TargetFrameworks>
-		<Version>1.0.6</Version>
+		<TargetFrameworks>netstandard2.0;netstandard2.1;net6.0;net8.0</TargetFrameworks>
+		<Version>1.0.7</Version>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<DocumentationFile>S3Lite.xml</DocumentationFile>
 		<Authors>Joel Christner</Authors>
 		<Description>Lightweight Amazon S3 client without all the heft and dependency drag of the official library.</Description>
-		<Copyright>(c)2024 Joel Christner</Copyright>
+		<Copyright>(c)2025 Joel Christner</Copyright>
 		<PackageProjectUrl>https://github.com/jchristn/s3lite</PackageProjectUrl>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 		<PackageIcon>icon.png</PackageIcon>
@@ -22,30 +22,30 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <None Include="..\..\Assets\icon.png">
-	    <Pack>True</Pack>
-	    <PackagePath>\</PackagePath>
-	  </None>
-	  <None Include="..\..\LICENSE.md">
-	    <Pack>True</Pack>
-	    <PackagePath>\</PackagePath>
-	  </None>
-	  <None Include="..\..\README.md">
-	    <Pack>True</Pack>
-	    <PackagePath>\</PackagePath>
-	  </None>
+		<None Include="..\..\Assets\icon.png">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+		<None Include="..\..\LICENSE.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+		<None Include="..\..\README.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
 	</ItemGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="AWSSignatureGenerator" Version="1.0.8" />
-	  <PackageReference Include="PrettyId" Version="1.0.2" />
-	  <PackageReference Include="RestWrapper" Version="3.0.21" />
+		<PackageReference Include="AWSSignatureGenerator" Version="1.0.9" />
+		<PackageReference Include="PrettyId" Version="1.0.5" />
+		<PackageReference Include="RestWrapper" Version="3.1.4" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <None Update="S3Lite.xml">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </None>
+		<None Update="S3Lite.xml">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
 	</ItemGroup>
 
 </Project>
