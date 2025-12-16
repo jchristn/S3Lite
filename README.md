@@ -59,7 +59,7 @@ Console.WriteLine("Has credentials: " + s3.HasCredentials);  // False
 ListBucketResult objects = await s3.Bucket.ListAsync("public-dataset-bucket");
 ```
 
-#### S3-Compatible Storage (MinIO, LocalStack, etc.)
+#### S3-Compatible Storage (Less3, MinIO, LocalStack, etc.)
 
 ```csharp
 using S3Lite;
