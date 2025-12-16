@@ -999,11 +999,19 @@
         <member name="P:S3Lite.S3Client.AccessKey">
             <summary>
             Access key, generally a base64-encoded string.
+            When null or empty, anonymous access mode is used (no request signing).
             </summary>
         </member>
         <member name="P:S3Lite.S3Client.SecretKey">
             <summary>
             Secret access key, generally a base64-encoded string.
+            When null or empty, anonymous access mode is used (no request signing).
+            </summary>
+        </member>
+        <member name="P:S3Lite.S3Client.HasCredentials">
+            <summary>
+            Boolean indicating whether credentials are configured.
+            When false, anonymous access mode is used (no request signing).
             </summary>
         </member>
         <member name="P:S3Lite.S3Client.SignatureVersion">
@@ -1083,15 +1091,17 @@
         <member name="M:S3Lite.S3Client.WithAccessKey(System.String)">
             <summary>
             Specify the access key.
+            Pass null or empty string to use anonymous access mode.
             </summary>
-            <param name="accessKey">Access key.</param>
+            <param name="accessKey">Access key, or null for anonymous access.</param>
             <returns>S3Client.</returns>
         </member>
         <member name="M:S3Lite.S3Client.WithSecretKey(System.String)">
             <summary>
             Specify the secret key.
+            Pass null or empty string to use anonymous access mode.
             </summary>
-            <param name="secretKey">Secret key.</param>
+            <param name="secretKey">Secret key, or null for anonymous access.</param>
             <returns>S3Client.</returns>
         </member>
         <member name="M:S3Lite.S3Client.WithSignatureVersion(S3Lite.SignatureVersionEnum)">
@@ -1155,7 +1165,8 @@
         </member>
         <member name="M:S3Lite.S3Client.BuildRestResponse(RestWrapper.RestRequest,System.Byte[],System.Threading.CancellationToken)">
             <summary>
-            Construct an authorization header and submit RESTful request to retrieve a response.
+            Construct an authorization header (if credentials are configured) and submit RESTful request to retrieve a response.
+            When no credentials are configured, the request is sent without signing (anonymous access mode).
             </summary>
             <param name="req">RestRequest.</param>
             <param name="data">Byte array containing data.</param>

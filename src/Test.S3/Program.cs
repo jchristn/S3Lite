@@ -27,7 +27,7 @@
             Console.WriteLine("");
             Console.WriteLine("Enter the name of a new bucket, not an existing one");
             _Bucket =    Inputty.GetString("Bucket     :", _Bucket, false);
-            
+
             _S3 = new S3Client()
                 .WithAccessKey(_AccessKey)
                 .WithSecretKey(_SecretKey)

@@ -42,32 +42,25 @@
             _S3 = new S3Client()
                 .WithProtocol(_Protocol)
                 .WithRegion(_Region)
-                .WithAccessKey(_AccessKey)
-                .WithSecretKey(_SecretKey)
                 .WithRequestStyle(_RequestStyle)
                 .WithSignatureVersion(_SignatureVersion);
 
             if (!String.IsNullOrEmpty(_Hostname)) _S3 = _S3.WithHostname(_Hostname);
             if (_Port != null) _S3 = _S3.WithPort(_Port.Value);
 
-            if (_Logging) _S3.Logger = Console.WriteLine;
-        }
-
-        static async Task CreateFiles()
-        {
-            Console.WriteLine("");
-            Console.WriteLine("Creating " + _NumFiles + " files");
-
-            for (int i = 0; i < _NumFiles; i++)
+            if (!String.IsNullOrEmpty(_AccessKey) && !String.IsNullOrEmpty(_SecretKey))
             {
-                if (!await _S3.Object.ExistsAsync(_Bucket, i.ToString()))
-                {
-                    await _S3.Object.WriteAsync(_Bucket, i.ToString(), Encoding.UTF8.GetBytes(i.ToString()));
-                    Console.Write(i.ToString() + " ");
-                }
+                _S3 = _S3.WithAccessKey(_AccessKey).WithSecretKey(_SecretKey);
+                Console.WriteLine("Using authenticated access mode.");
+            }
+            else
+            {
+                Console.WriteLine("Using anonymous access mode (no credentials).");
             }
 
-            Console.WriteLine("");
+            Console.WriteLine("HasCredentials: " + _S3.HasCredentials);
+
+            if (_Logging) _S3.Logger = Console.WriteLine;
         }
 
         static async Task Enumerate(string msg, string prefix = null)

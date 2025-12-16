@@ -3,11 +3,9 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+		<Nullable>disable</Nullable>
+		<ImplicitUsings>disable</ImplicitUsings>
 	</PropertyGroup>
-
-	<ItemGroup>
-		<PackageReference Include="Inputty" Version="1.0.10" />
-	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\S3Lite\S3Lite.csproj" />

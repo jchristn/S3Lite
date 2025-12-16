@@ -46,6 +46,7 @@
 
         /// <summary>
         /// Access key, generally a base64-encoded string.
+        /// When null or empty, anonymous access mode is used (no request signing).
         /// </summary>
         public string AccessKey
         {
@@ -61,6 +62,7 @@
 
         /// <summary>
         /// Secret access key, generally a base64-encoded string.
+        /// When null or empty, anonymous access mode is used (no request signing).
         /// </summary>
         public string SecretKey
         {
@@ -71,6 +73,18 @@
             set
             {
                 _SecretKey = value;
+            }
+        }
+
+        /// <summary>
+        /// Boolean indicating whether credentials are configured.
+        /// When false, anonymous access mode is used (no request signing).
+        /// </summary>
+        public bool HasCredentials
+        {
+            get
+            {
+                return !String.IsNullOrEmpty(_AccessKey) && !String.IsNullOrEmpty(_SecretKey);
             }
         }
 
@@ -262,24 +276,24 @@
 
         /// <summary>
         /// Specify the access key.
+        /// Pass null or empty string to use anonymous access mode.
         /// </summary>
-        /// <param name="accessKey">Access key.</param>
+        /// <param name="accessKey">Access key, or null for anonymous access.</param>
         /// <returns>S3Client.</returns>
         public S3Client WithAccessKey(string accessKey)
         {
-            if (string.IsNullOrEmpty(accessKey)) throw new ArgumentNullException(nameof(accessKey));
             _AccessKey = accessKey;
             return this;
         }
 
         /// <summary>
         /// Specify the secret key.
+        /// Pass null or empty string to use anonymous access mode.
         /// </summary>
-        /// <param name="secretKey">Secret key.</param>
+        /// <param name="secretKey">Secret key, or null for anonymous access.</param>
         /// <returns>S3Client.</returns>
         public S3Client WithSecretKey(string secretKey)
         {
-            if (string.IsNullOrEmpty(secretKey)) throw new ArgumentNullException(nameof(secretKey));
             _SecretKey = secretKey;
             return this;
         }
@@ -443,7 +457,8 @@
         }
 
         /// <summary>
-        /// Construct an authorization header and submit RESTful request to retrieve a response.
+        /// Construct an authorization header (if credentials are configured) and submit RESTful request to retrieve a response.
+        /// When no credentials are configured, the request is sent without signing (anonymous access mode).
         /// </summary>
         /// <param name="req">RestRequest.</param>
         /// <param name="data">Byte array containing data.</param>
@@ -458,7 +473,14 @@
             Uri uri = new Uri(req.Url);
 
             if (!req.Headers.AllKeys.Contains(Constants.HeaderHost))
-                req.Headers.Add(Constants.HeaderHost, uri.Host + ":" + uri.Port.ToString());
+            {
+                // For standard ports (80 for HTTP, 443 for HTTPS), omit the port from the host header
+                // AWS signature verification expects this format
+                bool isStandardPort = (uri.Scheme == "https" && uri.Port == 443) ||
+                                      (uri.Scheme == "http" && uri.Port == 80);
+                string hostHeader = isStandardPort ? uri.Host : uri.Host + ":" + uri.Port.ToString();
+                req.Headers.Add(Constants.HeaderHost, hostHeader);
+            }
 
             if (!req.Headers.AllKeys.Contains(Constants.HeaderAmazonDate))
                 req.Headers.Add(Constants.HeaderAmazonDate, timestamp);
@@ -468,22 +490,29 @@
 
             req.Headers = SortNameValueCollection(req.Headers);
 
-            V4SignatureResult signature = new V4SignatureResult(
-                timestamp,
-                req.Method.ToString().ToUpper(),
-                req.Url,
-                AccessKey,
-                SecretKey,
-                Region,
-                "s3",
-                req.Headers,
-                data
-                );
+            if (HasCredentials)
+            {
+                V4SignatureResult signature = new V4SignatureResult(
+                    timestamp,
+                    req.Method.ToString().ToUpper(),
+                    req.Url,
+                    AccessKey,
+                    SecretKey,
+                    Region,
+                    "s3",
+                    req.Headers,
+                    data
+                    );
 
-            if (Debug.Signatures)
-                Logger?.Invoke(_Header + Environment.NewLine + signature);
+                if (Debug.Signatures)
+                    Logger?.Invoke(_Header + Environment.NewLine + signature);
 
-            req.Authorization.Raw = signature.AuthorizationHeader;
+                req.Authorization.Raw = signature.AuthorizationHeader;
+            }
+            else
+            {
+                Logger?.Invoke(_Header + "anonymous access mode, skipping request signing");
+            }
 
             RestResponse resp;
 

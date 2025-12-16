@@ -26,16 +26,6 @@
         static S3Client _S3 = null;
         static bool _Logging = false;
 
-        private static List<string> _ValidStorageTypes = new List<string>
-        {
-            "aws",
-            "awslite",
-            "azure",
-            "cifs",
-            "disk",
-            "nfs"
-        };
-
         private static List<string> _Keys = new List<string>
         {
             "root.txt",
@@ -70,13 +60,23 @@
             _S3 = new S3Client()
                 .WithProtocol(_Protocol)
                 .WithRegion(_Region)
-                .WithAccessKey(_AccessKey)
-                .WithSecretKey(_SecretKey)
                 .WithRequestStyle(_RequestStyle)
                 .WithSignatureVersion(_SignatureVersion);
 
             if (!String.IsNullOrEmpty(_Hostname)) _S3 = _S3.WithHostname(_Hostname);
             if (_Port != null) _S3 = _S3.WithPort(_Port.Value);
+
+            if (!String.IsNullOrEmpty(_AccessKey) && !String.IsNullOrEmpty(_SecretKey))
+            {
+                _S3 = _S3.WithAccessKey(_AccessKey).WithSecretKey(_SecretKey);
+                Console.WriteLine("Using authenticated access mode.");
+            }
+            else
+            {
+                Console.WriteLine("Using anonymous access mode (no credentials).");
+            }
+
+            Console.WriteLine("HasCredentials: " + _S3.HasCredentials);
 
             if (_Logging) _S3.Logger = Console.WriteLine;
         }
