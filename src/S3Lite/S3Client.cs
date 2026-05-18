@@ -216,6 +216,23 @@
             }
         }
 
+        /// <summary>
+        /// Caller-supplied HTTP client instance.
+        /// When null, RestWrapper creates and owns its own transport for each request.
+        /// When non-null, the caller owns the lifetime and transport configuration.
+        /// </summary>
+        public HttpClient HttpClient
+        {
+            get
+            {
+                return _HttpClient;
+            }
+            set
+            {
+                _HttpClient = value;
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -231,6 +248,7 @@
         private SignatureVersionEnum _SignatureVersion = SignatureVersionEnum.Version4;
         private string _AccessKey = null;
         private string _SecretKey = null;
+        private HttpClient _HttpClient = null;
 
         private SerializationHelper _Serializer = new SerializationHelper();
 
@@ -248,6 +266,18 @@
             Object = new ObjectApis(this);
         }
 
+        /// <summary>
+        /// Instantiate using a caller-supplied HTTP client.
+        /// The supplied client remains caller-owned and will not be disposed by S3Lite.
+        /// </summary>
+        /// <param name="httpClient">HTTP client instance to reuse for requests.</param>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="httpClient"/> is null.</exception>
+        public S3Client(HttpClient httpClient) : this()
+        {
+            if (httpClient == null) throw new ArgumentNullException(nameof(httpClient));
+            _HttpClient = httpClient;
+        }
+
         #endregion
 
         #region Public-Methods
@@ -260,6 +290,19 @@
         public S3Client WithLogger(Action<string> logger)
         {
             Logger = logger;
+            return this;
+        }
+
+        /// <summary>
+        /// Specify a caller-supplied HTTP client.
+        /// Pass null to return to RestWrapper-managed transport behavior.
+        /// The supplied client remains caller-owned and will not be disposed by S3Lite.
+        /// </summary>
+        /// <param name="httpClient">HTTP client instance, or null to clear a previously assigned client.</param>
+        /// <returns>S3Client.</returns>
+        public S3Client WithHttpClient(HttpClient httpClient)
+        {
+            _HttpClient = httpClient;
             return this;
         }
 
@@ -444,9 +487,13 @@
         /// <returns>RestRequest.</returns>
         internal RestRequest BuildRestRequest(HttpMethod method, string url, string contentType = null)
         {
-            RestRequest req = new RestRequest(url, method, contentType);
+            RestRequest req;
 
-            string timestamp = DateTime.UtcNow.ToString(Constants.TimestampFormatVerbose);
+            if (_HttpClient != null)
+                req = new RestRequest(url, method, contentType, _HttpClient);
+            else
+                req = new RestRequest(url, method, contentType);
+
             req.Headers.Add(Constants.HeaderUserAgent, Constants.HeaderUserAgentValue);
 
             if (!String.IsNullOrEmpty(contentType))
@@ -472,15 +519,17 @@
 
             Uri uri = new Uri(req.Url);
 
-            if (!req.Headers.AllKeys.Contains(Constants.HeaderHost))
-            {
-                // For standard ports (80 for HTTP, 443 for HTTPS), omit the port from the host header
-                // AWS signature verification expects this format
-                bool isStandardPort = (uri.Scheme == "https" && uri.Port == 443) ||
-                                      (uri.Scheme == "http" && uri.Port == 80);
-                string hostHeader = isStandardPort ? uri.Host : uri.Host + ":" + uri.Port.ToString();
-                req.Headers.Add(Constants.HeaderHost, hostHeader);
-            }
+            if (req.Headers == null)
+                req.Headers = new NameValueCollection(StringComparer.InvariantCultureIgnoreCase);
+
+            if (req.Headers.AllKeys.Contains(Constants.HeaderHost))
+                req.Headers.Remove(Constants.HeaderHost);
+
+            // For standard ports (80 for HTTP, 443 for HTTPS), omit the port from the host header
+            // AWS signature verification expects this format.
+            bool isStandardPort = (uri.Scheme == "https" && uri.Port == 443) ||
+                                  (uri.Scheme == "http" && uri.Port == 80);
+            string hostHeader = isStandardPort ? uri.Host : uri.Host + ":" + uri.Port.ToString();
 
             if (!req.Headers.AllKeys.Contains(Constants.HeaderAmazonDate))
                 req.Headers.Add(Constants.HeaderAmazonDate, timestamp);
@@ -488,6 +537,9 @@
             if (!req.Headers.AllKeys.Contains(Constants.HeaderAmazonContentSha256))
                 req.Headers.Add(Constants.HeaderAmazonContentSha256, hash);
 
+            NameValueCollection signingHeaders = new NameValueCollection(req.Headers);
+            signingHeaders.Add(Constants.HeaderHost, hostHeader);
+            signingHeaders = SortNameValueCollection(signingHeaders);
             req.Headers = SortNameValueCollection(req.Headers);
 
             if (HasCredentials)
@@ -500,7 +552,7 @@
                     SecretKey,
                     Region,
                     "s3",
-                    req.Headers,
+                    signingHeaders,
                     data
                     );
 
@@ -603,32 +655,17 @@
         {
             if (stream == null) return BytesFromHexString(Constants.EmptySha256Hash);
 
-            stream.Seek(0, SeekOrigin.Begin);
-
             using (SHA256 sha256 = SHA256.Create())
             {
-                using (CryptoStream cs = new CryptoStream(stream, sha256, CryptoStreamMode.Write))
-                {
-                    byte[] buffer = new byte[_StreamBufferSize];
-                    int read = 0;
+                if (stream.CanSeek)
+                    stream.Seek(0, SeekOrigin.Begin);
 
-                    while (true)
-                    {
-                        read = stream.Read(buffer, 0, buffer.Length);
-                        if (read > 0)
-                        {
-                            cs.Write(buffer, 0, read);
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
+                byte[] hash = sha256.ComputeHash(stream);
 
-                    cs.FlushFinalBlock();
-                }
+                if (stream.CanSeek)
+                    stream.Seek(0, SeekOrigin.Begin);
 
-                return sha256.Hash;
+                return hash;
             }
         }
 

@@ -1,191 +1,268 @@
-![alt tag](https://github.com/jchristn/S3Lite/raw/main/Assets/icon.ico)
+![S3Lite icon](https://github.com/jchristn/S3Lite/raw/main/Assets/icon.ico)
 
 # S3Lite
 
-Simple AWS S3 client library without all of the heft and dependency drag of the official library.
+Lightweight Amazon S3 and S3-compatible storage client for .NET.
 
 [![NuGet Version](https://img.shields.io/nuget/v/S3Lite.svg?style=flat)](https://www.nuget.org/packages/S3Lite/) [![NuGet](https://img.shields.io/nuget/dt/S3Lite.svg)](https://www.nuget.org/packages/S3Lite)
 
-## Feedback and Enhancements
+S3Lite keeps the surface area small while still covering the core bucket and object operations most applications actually need. It targets AWS S3, Less3, MinIO, LocalStack, and other S3-compatible endpoints without dragging in the official AWS SDK.
 
-Encounter an issue or have an enhancement request?  Please file an issue or start a discussion here!
+## Why S3Lite
 
-## New in v1.0.x
+- Small dependency footprint
+- Simple fluent client configuration
+- AWS S3 and S3-compatible endpoint support
+- Anonymous access support for public buckets
+- Caller-supplied `HttpClient` support for DI, proxying, custom handlers, and connection reuse
+- Multi-targeted package: `netstandard2.0`, `netstandard2.1`, `net8.0`, and `net10.0`
 
-- Initial release
-- Anonymous access support (for public buckets that don't require authentication)
+## New in v1.1.0
 
-## Examples
+- Upgraded to `RestWrapper` `v3.2.0`
+- Added support for caller-supplied `HttpClient` instances
+- Reworked the automated test infrastructure around Touchstone
+- Added xUnit and NUnit runner projects alongside the console runner
 
-Refer to the ```Test.S3```, ```Test.S3Compatible```, and ```Test.Automated``` projects for full examples.
+## Installation
 
-### Client Configuration
+```bash
+dotnet add package S3Lite
+```
 
-#### AWS S3 with Credentials (Virtual-Hosted Style)
+## Quick Start
+
+### AWS S3 with Credentials
 
 ```csharp
+using System;
+using System.Text;
 using S3Lite;
 using S3Lite.ApiObjects;
 
 S3Client s3 = new S3Client()
-  .WithRegion("us-west-1")
-  .WithAccessKey("AKIAIOSFODNN7EXAMPLE")
-  .WithSecretKey("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
-  .WithRequestStyle(RequestStyleEnum.VirtualHostedStyle)
-  .WithSignatureVersion(SignatureVersionEnum.Version4)
-  .WithLogger(Console.WriteLine);
+    .WithRegion("us-west-1")
+    .WithAccessKey("AKIAIOSFODNN7EXAMPLE")
+    .WithSecretKey("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
+    .WithRequestStyle(RequestStyleEnum.VirtualHostedStyle)
+    .WithLogger(Console.WriteLine);
 
-// Check if credentials are configured
-Console.WriteLine("Has credentials: " + s3.HasCredentials);  // True
+ListAllMyBucketsResult buckets = await s3.Service.ListBucketsAsync();
+
+await s3.Object.WriteAsync(
+    "my-bucket",
+    "hello.txt",
+    Encoding.UTF8.GetBytes("hello from s3lite"),
+    "text/plain");
+
+byte[] data = await s3.Object.GetAsync("my-bucket", "hello.txt");
+Console.WriteLine(Encoding.UTF8.GetString(data));
 ```
 
-#### AWS S3 with Anonymous Access (Public Buckets)
+### Anonymous Access for Public Buckets
 
-For accessing public S3 buckets that don't require authentication, simply omit the access key and secret key:
+If a bucket is public, simply omit credentials:
 
 ```csharp
+using System;
 using S3Lite;
 using S3Lite.ApiObjects;
 
 S3Client s3 = new S3Client()
-  .WithRegion("us-west-1")
-  .WithRequestStyle(RequestStyleEnum.VirtualHostedStyle)
-  .WithLogger(Console.WriteLine);
+    .WithRegion("us-west-1")
+    .WithRequestStyle(RequestStyleEnum.VirtualHostedStyle);
 
-// Check if credentials are configured
-Console.WriteLine("Has credentials: " + s3.HasCredentials);  // False
-
-// Access public bucket contents
-ListBucketResult objects = await s3.Bucket.ListAsync("public-dataset-bucket");
+ListBucketResult result = await s3.Bucket.ListAsync("public-dataset-bucket");
+Console.WriteLine(result.Contents.Count);
 ```
 
-#### S3-Compatible Storage (Less3, MinIO, LocalStack, etc.)
+### S3-Compatible Storage
 
 ```csharp
 using S3Lite;
-using S3Lite.ApiObjects;
 
 S3Client s3 = new S3Client()
-  .WithRegion("us-west-1")
-  .WithAccessKey("minioadmin")
-  .WithSecretKey("minioadmin")
-  .WithHostname("localhost")
-  .WithPort(9000)
-  .WithProtocol(ProtocolEnum.Http)
-  .WithRequestStyle(RequestStyleEnum.PathStyle)
-  .WithLogger(Console.WriteLine);
+    .WithHostname("localhost")
+    .WithPort(9000)
+    .WithProtocol(ProtocolEnum.Http)
+    .WithRegion("us-west-1")
+    .WithRequestStyle(RequestStyleEnum.PathStyle)
+    .WithAccessKey("minioadmin")
+    .WithSecretKey("minioadmin");
 ```
 
-### Endpoint Configuration
+## Bring Your Own HttpClient
 
-The endpoint hostname varies based on the request style:
-
-| Request Style | Default Hostname | Example URL |
-|--------------|------------------|-------------|
-| VirtualHostedStyle | `amazonaws.com` | `https://mybucket.s3.us-west-1.amazonaws.com/mykey` |
-| PathStyle | `s3.<region>.amazonaws.com` | `https://s3.us-west-1.amazonaws.com/mybucket/mykey` |
-
-For S3-compatible storage, use the hostname of your storage server (e.g., `localhost` for local development).
-
-### API Reference
-
-#### Service APIs
+`S3Lite` now exposes the caller-supplied `HttpClient` support added in `RestWrapper` `v3.2.0`. Use this when you already manage `HttpClient` instances through dependency injection, need a custom handler pipeline, or want to centralize transport settings.
 
 ```csharp
-// List all buckets (requires authentication)
+using System;
+using System.Net.Http;
+using S3Lite;
+
+HttpClient httpClient = new HttpClient();
+httpClient.Timeout = TimeSpan.FromSeconds(30);
+
+S3Client s3 = new S3Client(httpClient)
+    .WithRegion("us-east-1")
+    .WithHostname("s3.us-east-1.amazonaws.com")
+    .WithRequestStyle(RequestStyleEnum.PathStyle)
+    .WithAccessKey("AKIAIOSFODNN7EXAMPLE")
+    .WithSecretKey("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY");
+
+bool exists = await s3.Bucket.ExistsAsync("my-bucket");
+```
+
+You can also attach one fluently:
+
+```csharp
+S3Client s3 = new S3Client()
+    .WithHttpClient(httpClient)
+    .WithRegion("us-east-1");
+```
+
+Notes:
+
+- The caller owns the lifetime of the supplied `HttpClient`
+- S3Lite does not dispose a caller-supplied `HttpClient`
+- Transport behavior such as proxying, TLS, decompression, retries, and timeouts should be configured on your `HttpClient` or its handler
+
+## Common Operations
+
+### Service APIs
+
+```csharp
 ListAllMyBucketsResult buckets = await s3.Service.ListBucketsAsync();
 ```
 
-#### Bucket APIs
+### Bucket APIs
 
 ```csharp
-// Check if bucket exists
-bool exists = await s3.Bucket.ExistsAsync("mybucket");
+bool exists = await s3.Bucket.ExistsAsync("my-bucket");
 
-// Create a bucket
-await s3.Bucket.WriteAsync("mybucket", "us-west-1");
+await s3.Bucket.WriteAsync("my-bucket", "us-west-1");
 
-// List objects in a bucket
-ListBucketResult objects = await s3.Bucket.ListAsync("mybucket");
+ListBucketResult objects = await s3.Bucket.ListAsync("my-bucket");
 
-// List objects with prefix filter
-ListBucketResult filtered = await s3.Bucket.ListAsync("mybucket", prefix: "folder/");
+ListBucketResult filtered = await s3.Bucket.ListAsync("my-bucket", prefix: "images/");
 
-// List with pagination (max 1000 keys per request)
-ListBucketResult page1 = await s3.Bucket.ListAsync("mybucket", maxKeys: 100);
-if (!string.IsNullOrEmpty(page1.NextContinuationToken))
-{
-    ListBucketResult page2 = await s3.Bucket.ListAsync("mybucket",
-        continuationToken: page1.NextContinuationToken, maxKeys: 100);
-}
+ListBucketResult page = await s3.Bucket.ListAsync("my-bucket", continuationToken: "token-value", maxKeys: 100);
 
-// Delete a bucket (must be empty)
-await s3.Bucket.DeleteAsync("mybucket");
+await s3.Bucket.DeleteAsync("my-bucket");
 ```
 
-#### Object APIs
+### Object APIs
 
 ```csharp
-// Write an object
-await s3.Object.WriteAsync("mybucket", "mykey", Encoding.UTF8.GetBytes("Hello, world!"));
+await s3.Object.WriteAsync("my-bucket", "notes/hello.txt", Encoding.UTF8.GetBytes("hello"));
 
-// Write with content type
-await s3.Object.WriteAsync("mybucket", "mykey.json", jsonBytes, "application/json");
+bool exists = await s3.Object.ExistsAsync("my-bucket", "notes/hello.txt");
 
-// Check if object exists
-bool exists = await s3.Object.ExistsAsync("mybucket", "mykey");
+ObjectMetadata metadata = await s3.Object.GetMetadataAsync("my-bucket", "notes/hello.txt");
 
-// Get object metadata
-ObjectMetadata metadata = await s3.Object.GetMetadataAsync("mybucket", "mykey");
+byte[] data = await s3.Object.GetAsync("my-bucket", "notes/hello.txt");
 
-// Read an object
-byte[] data = await s3.Object.GetAsync("mybucket", "mykey");
-
-// Delete an object
-await s3.Object.DeleteAsync("mybucket", "mykey");
+await s3.Object.DeleteAsync("my-bucket", "notes/hello.txt");
 ```
 
-### Method Signatures
+## Endpoint Guidance
 
-#### ServiceApis
+The right hostname depends on the request style you choose:
 
-| Method | Parameters | Returns |
-|--------|------------|---------|
-| `ListBucketsAsync` | `headers`, `token` | `ListAllMyBucketsResult` |
+| Request Style | Typical Hostname | Example URL |
+|---|---|---|
+| `VirtualHostedStyle` | `amazonaws.com` | `https://mybucket.s3.us-west-1.amazonaws.com/mykey` |
+| `PathStyle` | `s3.us-west-1.amazonaws.com` | `https://s3.us-west-1.amazonaws.com/mybucket/mykey` |
 
-#### BucketApis
+For S3-compatible platforms such as Less3, MinIO, or LocalStack, point `Hostname` and `Port` at your service endpoint and usually prefer `PathStyle`.
 
-| Method | Parameters | Returns |
-|--------|------------|---------|
-| `ExistsAsync` | `bucket`, `headers`, `token` | `bool` |
-| `ListAsync` | `bucket`, `prefix`, `marker`, `continuationToken`, `maxKeys`, `headers`, `token` | `ListBucketResult` |
-| `WriteAsync` | `bucket`, `region`, `headers`, `token` | `Task` |
-| `DeleteAsync` | `bucket`, `headers`, `token` | `Task` |
+## Key Client Properties
 
-#### ObjectApis
+| Property | Description |
+|---|---|
+| `AccessKey` | Access key, or null for anonymous mode |
+| `SecretKey` | Secret key, or null for anonymous mode |
+| `HasCredentials` | True when both access key and secret key are configured |
+| `Region` | Region used in request signing and URL construction |
+| `Hostname` | Endpoint hostname |
+| `Port` | Endpoint port |
+| `Protocol` | `Http` or `Https` |
+| `RequestStyle` | `VirtualHostedStyle` or `PathStyle` |
+| `SignatureVersion` | Signature version used by the client |
+| `HttpClient` | Optional caller-supplied `HttpClient` instance |
+| `Logger` | Optional request logger callback |
 
-| Method | Parameters | Returns |
-|--------|------------|---------|
-| `ExistsAsync` | `bucket`, `key`, `versionId`, `headers`, `token` | `bool` |
-| `GetMetadataAsync` | `bucket`, `key`, `versionId`, `headers`, `token` | `ObjectMetadata` |
-| `GetAsync` | `bucket`, `key`, `versionId`, `headers`, `token` | `byte[]` |
-| `WriteAsync` | `bucket`, `key`, `data`, `contentType`, `versionId`, `headers`, `token` | `Task` |
-| `DeleteAsync` | `bucket`, `key`, `versionId`, `headers`, `token` | `Task` |
+## Error Behavior
 
-### S3Client Properties
+S3Lite throws `WebException` for failed requests and includes useful context in the exception `Data` collection, including:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `AccessKey` | `string` | AWS access key (null for anonymous access) |
-| `SecretKey` | `string` | AWS secret key (null for anonymous access) |
-| `HasCredentials` | `bool` | True if both AccessKey and SecretKey are configured |
-| `Region` | `string` | AWS region (default: `us-west-1`) |
-| `Hostname` | `string` | S3 endpoint hostname (default: `amazonaws.com`) |
-| `Port` | `int` | Port number (default: `443`) |
-| `Protocol` | `ProtocolEnum` | `Http` or `Https` (default: `Https`) |
-| `RequestStyle` | `RequestStyleEnum` | `VirtualHostedStyle` or `PathStyle` (default: `VirtualHostedStyle`) |
-| `SignatureVersion` | `SignatureVersionEnum` | `Version2` or `Version4` (default: `Version4`) |
+- `StatusCode`
+- `URL`
+- `RequestBody`
+- `ResponseBody`
+- S3 error metadata such as `RequestId`, `VersionId`, `Resource`, and `ErrorCode` when available
+
+## Automated Testing
+
+The repository now uses Touchstone so the same shared descriptors can run through multiple hosts:
+
+- `src/Test.Shared`: shared Touchstone descriptors and test configuration
+- `src/Test.Automated`: console runner using `Touchstone.Cli`
+- `src/Test.Xunit`: xUnit adapter host
+- `src/Test.Nunit`: NUnit adapter host
+
+### Run the Console Runner
+
+```bash
+dotnet run --framework net8.0 --project src/Test.Automated -- -b my-bucket -a ACCESS_KEY -s SECRET_KEY
+```
+
+Optional arguments:
+
+- `--endpoint <host>`
+- `--port <port>`
+- `--region <region>`
+- `--http`
+- `--https`
+- `--path-style`
+- `--virtual-hosted`
+- `--verbose`
+- `--skip-cleanup`
+- `--skip-write-tests`
+- `--results <path>`
+
+### Run xUnit and NUnit
+
+```bash
+dotnet test src/Test.Xunit/Test.Xunit.csproj
+dotnet test src/Test.Nunit/Test.Nunit.csproj
+```
+
+These runners read the same configuration from environment variables:
+
+- `S3LITE_TEST_ENDPOINT`
+- `S3LITE_TEST_PORT`
+- `S3LITE_TEST_REGION`
+- `S3LITE_TEST_ACCESS_KEY`
+- `S3LITE_TEST_SECRET_KEY`
+- `S3LITE_TEST_BUCKET`
+- `S3LITE_TEST_PROTOCOL`
+- `S3LITE_TEST_REQUEST_STYLE`
+- `S3LITE_TEST_VERBOSE`
+- `S3LITE_TEST_SKIP_CLEANUP`
+- `S3LITE_TEST_SKIP_WRITE_TESTS`
+
+## Example Projects
+
+- `src/Test.S3`: interactive AWS S3 example
+- `src/Test.S3Compatible`: interactive S3-compatible example
+- `src/Test.Script`: script-style object hierarchy walkthrough
+- `src/Test.LargeEnumeration`: large-listing exercise
+
+## Feedback and Enhancements
+
+Encounter an issue or have an enhancement request? Please open an issue or start a discussion in the repository.
 
 ## Version History
 
-Refer to CHANGELOG.md for details.
+See [CHANGELOG.md](CHANGELOG.md) for release details.

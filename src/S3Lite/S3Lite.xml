@@ -1069,16 +1069,40 @@
             Serialization helper.
             </summary>
         </member>
+        <member name="P:S3Lite.S3Client.HttpClient">
+            <summary>
+            Caller-supplied HTTP client instance.
+            When null, RestWrapper creates and owns its own transport for each request.
+            When non-null, the caller owns the lifetime and transport configuration.
+            </summary>
+        </member>
         <member name="M:S3Lite.S3Client.#ctor">
             <summary>
             Instantiate.
             </summary>
+        </member>
+        <member name="M:S3Lite.S3Client.#ctor(System.Net.Http.HttpClient)">
+            <summary>
+            Instantiate using a caller-supplied HTTP client.
+            The supplied client remains caller-owned and will not be disposed by S3Lite.
+            </summary>
+            <param name="httpClient">HTTP client instance to reuse for requests.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="httpClient"/> is null.</exception>
         </member>
         <member name="M:S3Lite.S3Client.WithLogger(System.Action{System.String})">
             <summary>
             Specify the logger method.
             </summary>
             <param name="logger">Logger method.</param>
+            <returns>S3Client.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.WithHttpClient(System.Net.Http.HttpClient)">
+            <summary>
+            Specify a caller-supplied HTTP client.
+            Pass null to return to RestWrapper-managed transport behavior.
+            The supplied client remains caller-owned and will not be disposed by S3Lite.
+            </summary>
+            <param name="httpClient">HTTP client instance, or null to clear a previously assigned client.</param>
             <returns>S3Client.</returns>
         </member>
         <member name="M:S3Lite.S3Client.WithRegion(System.String)">

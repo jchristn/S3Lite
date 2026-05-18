@@ -64,7 +64,7 @@
 
             string url = _Client.BuildUrl(bucket, key, versionId);
 
-            using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Get, url))
+            using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Head, url))
             {
                 _Client.Logger?.Invoke(_Header + "HEAD " + url);
                 req.Headers = headers;
@@ -119,7 +119,7 @@
 
             string url = _Client.BuildUrl(bucket, key, versionId);
 
-            using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Get, url))
+            using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Head, url))
             {
                 _Client.Logger?.Invoke(_Header + "HEAD " + url);
                 req.Headers = headers;
@@ -140,11 +140,13 @@
                         ret.Size = resp.ContentLength != null ? resp.ContentLength.Value : 0;
                         ret.ContentType = resp.ContentType;
 
-                        if (resp.Headers.AllKeys.Contains("etag"))
-                            ret.ETag = resp.Headers.Get("etag");
+                        string etag = resp.Headers.Get("etag");
+                        if (!String.IsNullOrEmpty(etag))
+                            ret.ETag = etag;
 
-                        if (resp.Headers.AllKeys.Contains("x-amz-meta-s3b-last-modified"))
-                            ret.LastModified = DateTime.Parse(resp.Headers.Get("x-amz-meta-s3b-last-modified"));
+                        string lastModified = resp.Headers.Get("x-amz-meta-s3b-last-modified");
+                        if (!String.IsNullOrEmpty(lastModified))
+                            ret.LastModified = DateTime.Parse(lastModified);
 
                         return ret;
                     }
@@ -184,7 +186,7 @@
             using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Get, url))
             {
                 _Client.Logger?.Invoke(_Header + "GET " + url);
-                req.Headers = null;
+                req.Headers = headers;
 
                 using (RestResponse resp = await _Client.BuildRestResponse(req, null, token).ConfigureAwait(false))
                 {

@@ -2,7 +2,7 @@
 
 	<PropertyGroup>
 		<TargetFrameworks>netstandard2.0;netstandard2.1;net8.0;net10.0</TargetFrameworks>
-		<Version>1.0.9</Version>
+		<Version>1.1.0</Version>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<DocumentationFile>S3Lite.xml</DocumentationFile>
 		<Authors>Joel Christner</Authors>
@@ -14,8 +14,8 @@
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<RepositoryUrl>https://github.com/jchristn/s3lite</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
-		<PackageTags>aws s3 client </PackageTags>
-		<PackageReleaseNotes>Initial release</PackageReleaseNotes>
+		<PackageTags>aws s3 client storage minio less3 localstack</PackageTags>
+		<PackageReleaseNotes>Caller-supplied HttpClient support, RestWrapper 3.2.0, and Touchstone-based automated test runners.</PackageReleaseNotes>
 		<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
 		<IncludeSymbols>True</IncludeSymbols>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
@@ -39,7 +39,7 @@
 	<ItemGroup>
 		<PackageReference Include="AWSSignatureGenerator" Version="1.0.12" />
 		<PackageReference Include="PrettyId" Version="2.0.1" />
-		<PackageReference Include="RestWrapper" Version="3.1.8" />
+		<PackageReference Include="RestWrapper" Version="3.2.0" />
 	</ItemGroup>
 
 	<ItemGroup>
