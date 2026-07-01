@@ -15,6 +15,7 @@ S3Lite keeps the surface area small while still covering the core bucket and obj
 - AWS S3 and S3-compatible endpoint support
 - Anonymous access support for public buckets
 - Caller-supplied `HttpClient` support for DI, proxying, custom handlers, and connection reuse
+- Reverse-proxy / gateway routing that keeps the SigV4 signature bound to the upstream endpoint (useful for non-standard corporate reverse proxy configurations)
 - Multi-targeted package: `netstandard2.0`, `netstandard2.1`, `net8.0`, and `net10.0`
 
 ## New in v1.1.0
@@ -127,6 +128,45 @@ Notes:
 - S3Lite does not dispose a caller-supplied `HttpClient`
 - Transport behavior such as proxying, TLS, decompression, retries, and timeouts should be configured on your `HttpClient` or its handler
 
+## Routing Through a Reverse Proxy / Gateway
+
+Some environments require S3 traffic to egress through an intermediate host that forwards to the real endpoint. For example, `s3.gateway.example.com` can be configured to act as a reverse proxy to `s3.us-west-1.amazonaws.com`.
+
+SigV4 binds the signature to the request `Host`, so simply pointing the client at the gateway makes it sign for the gateway; once the gateway rewrites `Host` to the upstream endpoint, the signature no longer validates.
+
+`GatewayConfig` solves this. When set, S3Lite sends the request to the gateway while the SigV4 signature stays bound to the upstream endpoint configured via `WithHostname`. Attach it with `WithGateway`:
+
+```csharp
+using S3Lite;
+
+S3Client s3 = new S3Client()
+    .WithRegion("us-west-1")
+    .WithHostname("s3.us-west-1.amazonaws.com")   // the real upstream endpoint the signature is bound to
+    .WithPort(443)
+    .WithProtocol(ProtocolEnum.Https)
+    .WithRequestStyle(RequestStyleEnum.PathStyle)
+    .WithAccessKey("AKIAIOSFODNN7EXAMPLE")
+    .WithSecretKey("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
+    .WithGateway(new GatewayConfig
+    {
+        Hostname = "s3.gateway.example.com",      // gateway host only, no scheme or port
+        Port = 8443,                              // omit (or 0) to reuse the client Port
+        Protocol = ProtocolEnum.Https             // omit (or null) to reuse the client Protocol
+    });
+
+bool exists = await s3.Bucket.ExistsAsync("my-bucket");
+```
+
+How it works:
+
+- The connection (scheme, host, port) is created for `https://s3.gateway.example.com`, so the gateway receives `Host=s3.gateway.example.com`.
+- The signature is computed for the **upstream request authority**, which is not necessarily `Hostname` verbatim. For `PathStyle` it is the endpoint (for example `s3.us-west-1.amazonaws.com`, including a non-standard port when configured); for `VirtualHostedStyle` it is bucket-prefixed (for example `my-bucket.s3.us-west-1.amazonaws.com`).
+- The gateway is expected to rewrite `Host` back to that upstream authority before forwarding upstream, so the signature validates. The path, query, and body are unchanged.
+
+`GatewayConfig.Hostname` must be the **gateway host only** — supply the protocol via `GatewayConfig.Protocol` and the port via `GatewayConfig.Port` separately. When `Protocol` is null or `Port` is 0, the client's own `Protocol` / `Port` values are reused. Leave `Gateway` unset (or `Hostname` empty) to send requests directly to `Hostname`.
+
+This is **not** a forward / HTTP (`CONNECT`) proxy. A forward proxy preserves the upstream `Host` end-to-end and needs no rewrite; to use one, leave `Gateway` unset and supply an `HttpClient` configured with a `WebProxy` via [`WithHttpClient`](#bring-your-own-httpclient) instead.
+
 ## Common Operations
 
 ### Service APIs
@@ -190,6 +230,7 @@ For S3-compatible platforms such as Less3, MinIO, or LocalStack, point `Hostname
 | `RequestStyle` | `VirtualHostedStyle` or `PathStyle` |
 | `SignatureVersion` | Signature version used by the client |
 | `HttpClient` | Optional caller-supplied `HttpClient` instance |
+| `Gateway` | Optional `GatewayConfig` for reverse-proxy / gateway routing while signing for the upstream `Hostname` |
 | `Logger` | Optional request logger callback |
 
 ## Error Behavior

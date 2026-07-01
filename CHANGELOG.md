@@ -1,5 +1,8 @@
 # Changelog
 
+
+- Added reverse-proxy / gateway routing via `GatewayConfig` and `S3Client.WithGateway(GatewayConfig)`
+
 ## v1.1.0 - 2026-05-18
 
 - Upgraded `RestWrapper` from `3.1.8` to `3.2.0`

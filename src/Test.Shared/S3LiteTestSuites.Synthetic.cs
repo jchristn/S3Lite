@@ -2,12 +2,14 @@ namespace Test.Shared
 {
     using System;
     using System.Collections.Generic;
+    using System.Collections.Specialized;
     using System.Linq;
     using System.Net;
     using System.Net.Http;
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
+    using AWSSignatureGenerator;
     using S3Lite;
     using S3Lite.ApiObjects;
     using Touchstone.Core;
@@ -72,7 +74,9 @@ namespace Test.Shared
                 new TestCaseDescriptor(suiteId, "ObjectDeleteMissing", "Object.DeleteAsync succeeds when the object is already missing using " + modeLabel, ct => TestSyntheticObjectDeleteMissingAsync(mode, ct)),
                 new TestCaseDescriptor(suiteId, "ObjectSpecialCharacterKey", "Object APIs round-trip keys with spaces using " + modeLabel, ct => TestSyntheticObjectSpecialCharacterKeyAsync(mode, ct)),
                 new TestCaseDescriptor(suiteId, "ObjectVersionIdParameter", "Object APIs accept versionId query parameters using " + modeLabel, ct => TestSyntheticObjectVersionIdParameterAsync(mode, ct)),
-                new TestCaseDescriptor(suiteId, "ObjectWriteMissingBucket", "Object.WriteAsync reports NoSuchBucket using " + modeLabel, ct => TestSyntheticObjectWriteMissingBucketAsync(mode, ct))
+                new TestCaseDescriptor(suiteId, "ObjectWriteMissingBucket", "Object.WriteAsync reports NoSuchBucket using " + modeLabel, ct => TestSyntheticObjectWriteMissingBucketAsync(mode, ct)),
+                new TestCaseDescriptor(suiteId, "GatewayRoutingPathStyle", "Gateway routing sends to the gateway host while the SigV4 signature stays bound to the path-style upstream authority (non-standard port) using " + modeLabel, ct => TestSyntheticGatewayRoutingPathStyleAsync(mode, ct)),
+                new TestCaseDescriptor(suiteId, "GatewayRoutingVirtualHosted", "Gateway routing keeps the SigV4 signature bound to the bucket-prefixed virtual-hosted upstream authority for a nested key using " + modeLabel, ct => TestSyntheticGatewayRoutingVirtualHostedAsync(mode, ct)),
             };
 
             if (mode == RequestTransportMode.External)
@@ -545,6 +549,248 @@ namespace Test.Shared
                 AssertByteArraysEqual(payload, downloaded, "round-trip payload");
                 AssertFalse(server.ObjectExists(_SyntheticBucketName, key), "Deleted object should be removed from the synthetic server.");
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private const string _GatewayAccessKey = "synthetic-access-key";
+        private const string _GatewaySecretKey = "synthetic-secret-key";
+        private const string _GatewayUpstreamHostname = "s3.upstream.example";
+
+        private static async Task TestSyntheticGatewayRoutingPathStyleAsync(RequestTransportMode mode, CancellationToken cancellationToken)
+        {
+            await using S3LiteSyntheticServer server = await S3LiteSyntheticServer.StartAsync(cancellationToken).ConfigureAwait(false);
+            SeedSyntheticServer(server);
+
+            // A non-standard upstream port so the signed host authority is "s3.upstream.example:8443",
+            // not just the bare hostname; this exercises the port-bearing path-style authority.
+            const int upstreamPort = 8443;
+            HttpClient? httpClient = null;
+
+            try
+            {
+                if (mode == RequestTransportMode.External)
+                {
+                    httpClient = server.CreateHttpClient();
+                }
+
+                S3Client client = httpClient == null ? new S3Client() : new S3Client(httpClient);
+
+                client
+                    .WithHostname(_GatewayUpstreamHostname)
+                    .WithPort(upstreamPort)
+                    .WithProtocol(ProtocolEnum.Https)
+                    .WithRegion(server.Region)
+                    .WithRequestStyle(RequestStyleEnum.PathStyle)
+                    .WithAccessKey(_GatewayAccessKey)
+                    .WithSecretKey(_GatewaySecretKey)
+                    .WithGateway(new GatewayConfig
+                    {
+                        Hostname = server.Hostname,
+                        Port = server.Port,
+                        Protocol = ProtocolEnum.Http
+                    });
+
+                byte[] data = await client.Object.GetAsync(_SyntheticBucketName, _SyntheticHelloKey, token: cancellationToken).ConfigureAwait(false);
+
+                AssertByteArraysEqual(GetBytes(_SyntheticHelloContent), data, "A request routed through the gateway host should reach the synthetic server and return the seeded object.");
+                AssertEqual(
+                    server.Hostname + ":" + server.Port.ToString(),
+                    server.LastHostHeader,
+                    "The gateway should receive Host set to the gateway host; it is expected to rewrite Host to the upstream authority before forwarding.");
+                AssertEqual(
+                    "/" + _SyntheticBucketName + "/" + _SyntheticHelloKey,
+                    server.LastRawPathAndQuery,
+                    "Gateway routing must not alter the request path or query.");
+
+                AssertGatewaySignatureBoundToUpstream(
+                    server,
+                    server.Region,
+                    ProtocolEnum.Https,
+                    _GatewayUpstreamHostname,
+                    upstreamPort);
+            }
+            finally
+            {
+                httpClient?.Dispose();
+            }
+        }
+
+        private static async Task TestSyntheticGatewayRoutingVirtualHostedAsync(RequestTransportMode mode, CancellationToken cancellationToken)
+        {
+            await using S3LiteSyntheticServer server = await S3LiteSyntheticServer.StartAsync(cancellationToken).ConfigureAwait(false);
+            SeedSyntheticServer(server);
+
+            HttpClient? httpClient = null;
+
+            try
+            {
+                if (mode == RequestTransportMode.External)
+                {
+                    httpClient = server.CreateHttpClient();
+                }
+
+                S3Client client = httpClient == null ? new S3Client() : new S3Client(httpClient);
+
+                client
+                    .WithHostname(_GatewayUpstreamHostname)
+                    .WithPort(443)
+                    .WithProtocol(ProtocolEnum.Https)
+                    .WithRegion(server.Region)
+                    .WithRequestStyle(RequestStyleEnum.VirtualHostedStyle)
+                    .WithAccessKey(_GatewayAccessKey)
+                    .WithSecretKey(_GatewaySecretKey)
+                    .WithGateway(new GatewayConfig
+                    {
+                        Hostname = server.Hostname,
+                        Port = server.Port,
+                        Protocol = ProtocolEnum.Http
+                    });
+
+                // A nested key so we also confirm URL mutation does not disturb path signing.
+                //
+                // In virtual-hosted style the bucket lives in the Host header (bucket.s3.region.hostname), which
+                // the gateway redirect replaces with the gateway host. The synthetic server resolves the bucket
+                // from the request path, so once the bucket has left the Host it 404s as NoSuchBucket - exactly
+                // as a path-routing endpoint would. That is expected here: this test verifies how the request is
+                // signed and addressed, not that this particular server can serve a virtual-hosted request, so we
+                // only require that the request was sent and captured.
+                await AssertThrowsAsync<WebException>(
+                    () => client.Object.GetAsync(_SyntheticBucketName, _SyntheticFolderKeyOne, token: cancellationToken)).ConfigureAwait(false);
+
+                AssertEqual(
+                    server.Hostname + ":" + server.Port.ToString(),
+                    server.LastHostHeader,
+                    "The gateway should receive Host set to the gateway host; it is expected to rewrite Host to the upstream authority before forwarding.");
+                AssertEqual(
+                    "/" + _SyntheticFolderKeyOne,
+                    server.LastRawPathAndQuery,
+                    "Virtual-hosted gateway routing keeps the bucket in the host and the key in the path unchanged.");
+
+                // For virtual-hosted style the signed authority is bucket-prefixed: bucket.s3.region.hostname.
+                string virtualHostedAuthority = _SyntheticBucketName + ".s3." + server.Region + "." + _GatewayUpstreamHostname;
+
+                AssertGatewaySignatureBoundToUpstream(
+                    server,
+                    server.Region,
+                    ProtocolEnum.Https,
+                    virtualHostedAuthority,
+                    443);
+            }
+            finally
+            {
+                httpClient?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Proves the SigV4 signature carried by a gateway-routed request is bound to the upstream request
+        /// authority (the host the gateway is expected to restore), not to the gateway host the request was
+        /// physically sent to. Recomputes the signature against the upstream authority and confirms it matches
+        /// the signature the client sent, while the gateway authority does not - so a gateway that rewrites Host
+        /// back to the upstream authority yields a request that validates, and one that leaves the gateway host
+        /// in place does not.
+        /// </summary>
+        private static void AssertGatewaySignatureBoundToUpstream(
+            S3LiteSyntheticServer server,
+            string region,
+            ProtocolEnum upstreamProtocol,
+            string upstreamHost,
+            int upstreamPort)
+        {
+            NameValueCollection? received = server.LastRequestHeaders;
+            AssertNotNull(received, "captured gateway request headers");
+            AssertNotNull(server.LastHttpMethod, "captured gateway request method");
+            AssertNotNull(server.LastRawPathAndQuery, "captured gateway request path");
+
+            string? authorization = received!["Authorization"];
+            AssertNotNull(authorization, "captured gateway Authorization header");
+
+            string capturedSignature = ParseAuthorizationField(authorization!, "Signature=");
+            List<string> signedHeaders = ParseAuthorizationField(authorization!, "SignedHeaders=")
+                .Split(';')
+                .Select(static h => h.Trim())
+                .Where(static h => h.Length > 0)
+                .ToList();
+            AssertTrue(signedHeaders.Contains("host"), "The SigV4 SignedHeaders must include the host header.");
+
+            string method = server.LastHttpMethod!;
+            string pathAndQuery = server.LastRawPathAndQuery!;
+            string timestamp = received["x-amz-date"]
+                ?? throw new InvalidOperationException("The gateway request is missing the x-amz-date header.");
+
+            string upstreamSignature = RecomputeGatewaySignature(
+                received, signedHeaders, method, timestamp, region,
+                upstreamProtocol == ProtocolEnum.Https ? "https" : "http",
+                upstreamHost, upstreamPort, pathAndQuery);
+
+            AssertEqual(
+                capturedSignature,
+                upstreamSignature,
+                "The SigV4 signature must validate once the gateway rewrites Host to the upstream authority "
+                + upstreamHost + " (it is bound to the upstream request, not the gateway host).");
+
+            // Negative control: the signature must NOT match the gateway authority the request was sent to,
+            // confirming the binding is genuinely to the upstream authority rather than incidentally to any host.
+            string gatewayHost = server.Hostname;
+            int gatewayPort = server.Port;
+            string gatewaySignature = RecomputeGatewaySignature(
+                received, signedHeaders, method, timestamp, region,
+                "http", gatewayHost, gatewayPort, pathAndQuery);
+
+            AssertTrue(
+                !String.Equals(capturedSignature, gatewaySignature, StringComparison.Ordinal),
+                "The signature must not match the gateway authority " + gatewayHost + ":" + gatewayPort.ToString()
+                + "; otherwise the upstream would reject the forwarded request.");
+        }
+
+        private static string RecomputeGatewaySignature(
+            NameValueCollection received,
+            List<string> signedHeaders,
+            string method,
+            string timestamp,
+            string region,
+            string scheme,
+            string host,
+            int port,
+            string pathAndQuery)
+        {
+            bool isStandardPort = (scheme == "https" && port == 443) || (scheme == "http" && port == 80);
+            string authority = isStandardPort ? host : host + ":" + port.ToString();
+
+            NameValueCollection signingHeaders = new NameValueCollection();
+            foreach (string name in signedHeaders)
+            {
+                if (String.Equals(name, "host", StringComparison.OrdinalIgnoreCase))
+                    signingHeaders[name] = authority;
+                else
+                    signingHeaders[name] = received[name];
+            }
+
+            string fullUrl = scheme + "://" + host + ":" + port.ToString() + pathAndQuery;
+
+            V4SignatureResult signature = new V4SignatureResult(
+                timestamp,
+                method.ToUpperInvariant(),
+                fullUrl,
+                _GatewayAccessKey,
+                _GatewaySecretKey,
+                region,
+                "s3",
+                signingHeaders,
+                null);
+
+            return signature.Signature;
+        }
+
+        private static string ParseAuthorizationField(string authorization, string fieldPrefix)
+        {
+            int start = authorization.IndexOf(fieldPrefix, StringComparison.Ordinal);
+            if (start < 0) throw new InvalidOperationException("Authorization header is missing '" + fieldPrefix + "'.");
+            start += fieldPrefix.Length;
+
+            int end = authorization.IndexOf(',', start);
+            if (end < 0) end = authorization.Length;
+
+            return authorization.Substring(start, end - start).Trim();
         }
 
         private static async Task TestSyntheticServiceListBucketsAsync(RequestTransportMode mode, CancellationToken cancellationToken)

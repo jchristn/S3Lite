@@ -1,4 +1,4 @@
-﻿namespace S3Lite
+namespace S3Lite
 {
     using System;
     using System.Collections.Generic;
@@ -181,6 +181,27 @@
         }
 
         /// <summary>
+        /// Gateway settings used to route requests through an intermediate reverse proxy / gateway while the
+        /// SigV4 signature stays bound to the upstream endpoint described by <see cref="Hostname" />. The gateway
+        /// is expected to rewrite the Host header to the upstream request authority the signature was computed for
+        /// (bucket-prefixed for virtual-hosted-style, the bare endpoint - including any non-standard port - for
+        /// path-style) before forwarding upstream. When null, requests are sent directly to <see cref="Hostname" />.
+        /// This is not a forward/HTTP (CONNECT) proxy; for that, supply an HttpClient configured with a
+        /// WebProxy via <see cref="WithHttpClient" /> and leave this null.
+        /// </summary>
+        public GatewayConfig Gateway
+        {
+            get
+            {
+                return _Gateway;
+            }
+            set
+            {
+                _Gateway = value;
+            }
+        }
+
+        /// <summary>
         /// Service APIs.
         /// </summary>
         public ServiceApis Service { get; private set; }
@@ -243,6 +264,7 @@
         private string _Region = "us-west-1";
         private string _Hostname = "amazonaws.com";
         private int _Port = 443;
+        private GatewayConfig _Gateway = null;
 
         private RequestStyleEnum _RequestStyle = RequestStyleEnum.VirtualHostedStyle;
         private SignatureVersionEnum _SignatureVersion = SignatureVersionEnum.Version4;
@@ -394,6 +416,24 @@
         public S3Client WithPort(int port)
         {
             _Port = port;
+            return this;
+        }
+
+        /// <summary>
+        /// Specify gateway settings used to route requests through an intermediate reverse proxy / gateway
+        /// while the SigV4 signature stays bound to the upstream endpoint described by <see cref="Hostname" />.
+        /// The gateway is expected to rewrite the Host header to the upstream request authority the signature
+        /// was computed for (bucket-prefixed for virtual-hosted-style, the bare endpoint - including any
+        /// non-standard port - for path-style) before forwarding upstream. Pass null to send requests directly
+        /// to <see cref="Hostname" />.
+        /// This is not a forward/HTTP (CONNECT) proxy; for that, supply an HttpClient configured with a
+        /// WebProxy via <see cref="WithHttpClient" /> and leave this null.
+        /// </summary>
+        /// <param name="gateway">Gateway settings, or null to disable gateway routing.</param>
+        /// <returns>S3Client.</returns>
+        public S3Client WithGateway(GatewayConfig gateway)
+        {
+            _Gateway = gateway;
             return this;
         }
 
@@ -564,6 +604,29 @@
             else
             {
                 Logger?.Invoke(_Header + "anonymous access mode, skipping request signing");
+            }
+
+            if (_Gateway != null && !String.IsNullOrEmpty(_Gateway.Hostname))
+            {
+                // Redirect the connection (scheme/host/port) to the gateway while the signature stays bound to
+                // the upstream request authority. The signature was already computed above from req.Url (the
+                // upstream URL), so its signed Host is the upstream authority - bucket.s3.region.hostname for
+                // virtual-hosted-style, or s3.region.hostname[:port] for path-style - not necessarily Hostname
+                // verbatim. The transport derives the Host header from this rewritten URL, so the gateway
+                // receives Host = the gateway host and is expected to rewrite it back to that upstream authority
+                // before forwarding upstream (the corporate reverse-proxy case). Only scheme/host/port change
+                // here; the path, query, body, and signature are untouched.
+                //
+                // This is not a forward/CONNECT proxy. For a forward proxy that must preserve the upstream Host
+                // end-to-end, leave Gateway null and supply an HttpClient configured with a WebProxy
+                // (see WithHttpClient).
+                int gatewayPort = _Gateway.Port > 0 ? _Gateway.Port : _Port;
+                UriBuilder ub = new UriBuilder(req.Url);
+                if (_Gateway.Protocol.HasValue)
+                    ub.Scheme = _Gateway.Protocol.Value == ProtocolEnum.Https ? "https" : "http";
+                ub.Host = _Gateway.Hostname;
+                ub.Port = gatewayPort;
+                req.Url = ub.ToString();
             }
 
             RestResponse resp;
