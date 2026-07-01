@@ -1,5 +1,6 @@
 # Changelog
 
+## v1.2.0 - 2026-07-01
 
 - Added reverse-proxy / gateway routing via `GatewayConfig` and `S3Client.WithGateway(GatewayConfig)`
 
