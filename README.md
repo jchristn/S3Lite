@@ -164,6 +164,8 @@ How it works:
 
 This is **not** a forward / HTTP (`CONNECT`) proxy. A forward proxy preserves the upstream `Host` end-to-end and needs no rewrite; to use one, leave `Gateway` unset and supply an `HttpClient` configured with a `WebProxy` via [`WithHttpClient`](#bring-your-own-httpclient) instead.
 
+Thanks to `@danya02` for contributing this proxy/gateway support.
+
 ## Common Operations
 
 ### Service APIs
