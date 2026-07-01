@@ -18,12 +18,9 @@ S3Lite keeps the surface area small while still covering the core bucket and obj
 - Reverse-proxy / gateway routing that keeps the SigV4 signature bound to the upstream endpoint (useful for non-standard corporate reverse proxy configurations)
 - Multi-targeted package: `netstandard2.0`, `netstandard2.1`, `net8.0`, and `net10.0`
 
-## New in v1.1.0
+## New in v1.2.0
 
-- Upgraded to `RestWrapper` `v3.2.0`
-- Added support for caller-supplied `HttpClient` instances
-- Reworked the automated test infrastructure around Touchstone
-- Added xUnit and NUnit runner projects alongside the console runner
+- Added reverse-proxy / gateway routing via `GatewayConfig` and `S3Client.WithGateway(GatewayConfig)`
 
 ## Installation
 
