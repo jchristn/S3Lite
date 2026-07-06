@@ -127,11 +127,11 @@ Notes:
 
 ## Routing Through a Reverse Proxy / Gateway
 
-Some environments require S3 traffic to egress through an intermediate host that forwards to the real endpoint. For example, `s3.gateway.example.com` can be configured to act as a reverse proxy to `s3.us-west-1.amazonaws.com`.
+Some environments require S3 traffic to egress through an intermediate host that forwards to the real endpoint. For example, `gateway.example.com` can be configured to act as a reverse proxy to `s3.us-west-1.amazonaws.com`.
 
 SigV4 binds the signature to the request `Host`, so simply pointing the client at the gateway makes it sign for the gateway; once the gateway rewrites `Host` to the upstream endpoint, the signature no longer validates.
 
-`GatewayConfig` solves this. When set, S3Lite sends the request to the gateway while the SigV4 signature stays bound to the upstream endpoint configured via `WithHostname`. Attach it with `WithGateway`:
+`GatewayConfig` solves this. When set, S3Lite modifies the HTTP request it is sending over the wire, while the SigV4 signature stays bound to the original destination configured via `WithHostname`. Attach it with `WithGateway`:
 
 ```csharp
 using S3Lite;
@@ -146,19 +146,45 @@ S3Client s3 = new S3Client()
     .WithSecretKey("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
     .WithGateway(new GatewayConfig
     {
-        Hostname = "s3.gateway.example.com",      // gateway host only, no scheme or port
+        Hostname = "gateway.example.com",         // gateway host only, no scheme or port
         Port = 8443,                              // omit (or 0) to reuse the client Port
-        Protocol = ProtocolEnum.Https             // omit (or null) to reuse the client Protocol
+        Protocol = ProtocolEnum.Https,            // omit (or null) to reuse the client Protocol
+        BasePath = "/s3-proxy",                   // gateway base path prefix (skip if path does not need modification)
+        PathRewrite = p => "/s3-proxy/" + p,      // gateway path rewrite (takes precedence over BasePath)
     });
 
-bool exists = await s3.Bucket.ExistsAsync("my-bucket");
+byte[] content = await s3.Object.GetAsync("attachments-bucket", "cat-photo.jpg");
 ```
 
 How it works:
 
-- The connection (scheme, host, port) is created for `https://s3.gateway.example.com`, so the gateway receives `Host=s3.gateway.example.com`.
+- The connection (scheme, host, port) is created for `https://gateway.example.com`, so the gateway receives `Host=gateway.example.com`.
 - The signature is computed for the **upstream request authority**, which is not necessarily `Hostname` verbatim. For `PathStyle` it is the endpoint (for example `s3.us-west-1.amazonaws.com`, including a non-standard port when configured); for `VirtualHostedStyle` it is bucket-prefixed (for example `my-bucket.s3.us-west-1.amazonaws.com`).
-- The gateway is expected to rewrite `Host` back to that upstream authority before forwarding upstream, so the signature validates. The path, query, and body are unchanged.
+- The gateway is expected to undo all the modifications introduced by the `GatewayConfig`, which may include the host and path. The query parameters and body are expected to be passed through unmodified; if you happen to be in a situation where the gateway does want to perform such a rewrite, please let us know in an issue.
+
+In other words, your app will send a TCP connection to `gateway.example.com` with a request like:
+
+```
+GET /s3-proxy/attachments-bucket/cat-photo.jpg HTTP/1.1
+Host: gateway.example.com
+Authorization: AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20260707/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-date, Signature=xxxxx
+x-amz-date: 20260707T143000Z
+User-Agent: S3Lite
+```
+
+As written, this request will not validate for `s3.us-west-1.amazonaws.com` -- it's the wrong domain name and path.
+The gateway will then modify the request into a form like this before sending it upstream:
+
+```
+GET /attachments-bucket/cat-photo.jpg
+Host: s3.us-west-1.amazonaws.com
+Authorization: AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20260707/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-date, Signature=xxxxx
+x-amz-date: 20260707T143000Z
+User-Agent: S3Lite
+```
+
+This time, the request will validate, because all the extras added by `GatewayConfig` were precisely undone by the gateway's behavior.
+The gateway does not (and cannot) recompute the signature, so it stays unchanged from what the app authored; instead, we have constructed our request so that the signature isn't valid at the start but becomes valid after passing through the gateway.
 
 `GatewayConfig.Hostname` must be the **gateway host only** — supply the protocol via `GatewayConfig.Protocol` and the port via `GatewayConfig.Port` separately. When `Protocol` is null or `Port` is 0, the client's own `Protocol` / `Port` values are reused. Leave `Gateway` unset (or `Hostname` empty) to send requests directly to `Hostname`.
 

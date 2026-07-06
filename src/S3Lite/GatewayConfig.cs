@@ -56,6 +56,38 @@ namespace S3Lite
         /// </summary>
         public ProtocolEnum? Protocol { get; set; } = null;
 
+        /// <summary>
+        /// Base path prefix prepended to the signed upstream path when the request is sent to the gateway.
+        /// <para>
+        /// Like the Host rewrite, this changes only the path used for the HTTP connection; the SigV4 signature
+        /// stays bound to the upstream path the request was signed for. Use this when the gateway mounts the
+        /// upstream S3 endpoint under a sub-path (for example a request signed for <c>/bucket/key</c> is sent as
+        /// <c>/s3/bucket/key</c> with <c>BasePath = "/s3"</c>). The gateway is expected to strip this prefix,
+        /// restoring the signed path, before forwarding upstream.
+        /// </para>
+        /// A leading slash is added if omitted and a trailing slash is ignored, so <c>"s3"</c>, <c>"/s3"</c> and
+        /// <c>"/s3/"</c> are equivalent. When null or empty, no prefix is applied.
+        /// <para>
+        /// When <see cref="PathRewrite" /> is also set, it takes precedence and this value is ignored.
+        /// </para>
+        /// </summary>
+        public string BasePath { get; set; } = null;
+
+        /// <summary>
+        /// Optional delegate that maps the signed upstream path (for example <c>/bucket/key</c>) to the path the
+        /// request is actually sent to the gateway with. This is the general-purpose escape hatch for arbitrary
+        /// path transforms; for the common "mount under a sub-path" case prefer <see cref="BasePath" />.
+        /// <para>
+        /// Like <see cref="BasePath" />, this changes only the connection path - the SigV4 signature stays bound
+        /// to the upstream path passed in, and the gateway is expected to reverse the transform before forwarding
+        /// upstream. The input is the absolute path only (the query string is preserved separately); return an
+        /// absolute path beginning with <c>/</c>.
+        /// </para>
+        /// When set, this takes precedence over <see cref="BasePath" />. When null, only <see cref="BasePath" />
+        /// (if any) is applied.
+        /// </summary>
+        public Func<string, string> PathRewrite { get; set; } = null;
+
         #endregion
 
         #region Private-Members

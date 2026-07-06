@@ -925,6 +925,38 @@
             When null, the <see cref="P:S3Lite.S3Client.Protocol" /> value is used.
             </summary>
         </member>
+        <member name="P:S3Lite.GatewayConfig.BasePath">
+            <summary>
+            Base path prefix prepended to the signed upstream path when the request is sent to the gateway.
+            <para>
+            Like the Host rewrite, this changes only the path used for the TCP connection; the SigV4 signature
+            stays bound to the upstream path the request was signed for. Use this when the gateway mounts the
+            upstream S3 endpoint under a sub-path (for example a request signed for <c>/bucket/key</c> is sent as
+            <c>/s3/bucket/key</c> with <c>BasePath = "/s3"</c>). The gateway is expected to strip this prefix,
+            restoring the signed path, before forwarding upstream.
+            </para>
+            A leading slash is added if omitted and a trailing slash is ignored, so <c>"s3"</c>, <c>"/s3"</c> and
+            <c>"/s3/"</c> are equivalent. When null or empty, no prefix is applied.
+            <para>
+            When <see cref="P:S3Lite.GatewayConfig.PathRewrite" /> is also set, it takes precedence and this value is ignored.
+            </para>
+            </summary>
+        </member>
+        <member name="P:S3Lite.GatewayConfig.PathRewrite">
+            <summary>
+            Optional delegate that maps the signed upstream path (for example <c>/bucket/key</c>) to the path the
+            request is actually sent to the gateway with. This is the general-purpose escape hatch for arbitrary
+            path transforms; for the common "mount under a sub-path" case prefer <see cref="P:S3Lite.GatewayConfig.BasePath" />.
+            <para>
+            Like <see cref="P:S3Lite.GatewayConfig.BasePath" />, this changes only the connection path - the SigV4 signature stays bound
+            to the upstream path passed in, and the gateway is expected to reverse the transform before forwarding
+            upstream. The input is the absolute path only (the query string is preserved separately); return an
+            absolute path beginning with <c>/</c>.
+            </para>
+            When set, this takes precedence over <see cref="P:S3Lite.GatewayConfig.BasePath" />. When null, only <see cref="P:S3Lite.GatewayConfig.BasePath" />
+            (if any) is applied.
+            </summary>
+        </member>
         <member name="M:S3Lite.GatewayConfig.#ctor">
             <summary>
             Instantiate.
@@ -1248,6 +1280,15 @@
             <param name="key">Key.</param>
             <param name="versionId">Version ID.</param>
             <returns>String.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.CombineGatewayPath(System.String,System.String)">
+            <summary>
+            Combine a gateway base path prefix with the signed upstream path. A leading slash is added to the
+            prefix if missing and a trailing slash is ignored, so "s3", "/s3" and "/s3/" all yield "/s3" + path.
+            </summary>
+            <param name="basePath">Gateway base path prefix.</param>
+            <param name="signedPath">Signed upstream absolute path (begins with '/').</param>
+            <returns>Combined absolute path.</returns>
         </member>
         <member name="M:S3Lite.S3Client.BuildRestRequest(System.Net.Http.HttpMethod,System.String,System.String)">
             <summary>
