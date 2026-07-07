@@ -929,7 +929,7 @@
             <summary>
             Base path prefix prepended to the signed upstream path when the request is sent to the gateway.
             <para>
-            Like the Host rewrite, this changes only the path used for the TCP connection; the SigV4 signature
+            Like the Host rewrite, this changes only the path used for the HTTP connection; the SigV4 signature
             stays bound to the upstream path the request was signed for. Use this when the gateway mounts the
             upstream S3 endpoint under a sub-path (for example a request signed for <c>/bucket/key</c> is sent as
             <c>/s3/bucket/key</c> with <c>BasePath = "/s3"</c>). The gateway is expected to strip this prefix,
