@@ -519,6 +519,25 @@ namespace S3Lite
         }
 
         /// <summary>
+        /// Combine a gateway base path prefix with the signed upstream path. A leading slash is added to the
+        /// prefix if missing and a trailing slash is ignored, so "s3", "/s3" and "/s3/" all yield "/s3" + path.
+        /// </summary>
+        /// <param name="basePath">Gateway base path prefix.</param>
+        /// <param name="signedPath">Signed upstream absolute path (begins with '/').</param>
+        /// <returns>Combined absolute path.</returns>
+        internal static string CombineGatewayPath(string basePath, string signedPath)
+        {
+            string prefix = basePath.Trim();
+            if (!prefix.StartsWith("/")) prefix = "/" + prefix;
+            prefix = prefix.TrimEnd('/');
+
+            if (String.IsNullOrEmpty(signedPath)) signedPath = "/";
+            else if (!signedPath.StartsWith("/")) signedPath = "/" + signedPath;
+
+            return prefix + signedPath;
+        }
+
+        /// <summary>
         /// Create a RESTful request with standard headers.
         /// </summary>
         /// <param name="method">HTTP method.</param>
@@ -620,12 +639,22 @@ namespace S3Lite
                 // This is not a forward/CONNECT proxy. For a forward proxy that must preserve the upstream Host
                 // end-to-end, leave Gateway null and supply an HttpClient configured with a WebProxy
                 // (see WithHttpClient).
+                //
+                // The path is rewritten the same way when BasePath or PathRewrite is configured: the signature
+                // stays bound to the upstream path (already computed above from req.Url), while the connection
+                // path is prefixed/transformed so the gateway can strip/reverse it before forwarding upstream.
                 int gatewayPort = _Gateway.Port > 0 ? _Gateway.Port : _Port;
                 UriBuilder ub = new UriBuilder(req.Url);
                 if (_Gateway.Protocol.HasValue)
                     ub.Scheme = _Gateway.Protocol.Value == ProtocolEnum.Https ? "https" : "http";
                 ub.Host = _Gateway.Hostname;
                 ub.Port = gatewayPort;
+
+                if (_Gateway.PathRewrite != null)
+                    ub.Path = _Gateway.PathRewrite(ub.Path);
+                else if (!String.IsNullOrEmpty(_Gateway.BasePath))
+                    ub.Path = CombineGatewayPath(_Gateway.BasePath, ub.Path);
+
                 req.Url = ub.ToString();
             }
 

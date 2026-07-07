@@ -77,6 +77,8 @@ namespace Test.Shared
                 new TestCaseDescriptor(suiteId, "ObjectWriteMissingBucket", "Object.WriteAsync reports NoSuchBucket using " + modeLabel, ct => TestSyntheticObjectWriteMissingBucketAsync(mode, ct)),
                 new TestCaseDescriptor(suiteId, "GatewayRoutingPathStyle", "Gateway routing sends to the gateway host while the SigV4 signature stays bound to the path-style upstream authority (non-standard port) using " + modeLabel, ct => TestSyntheticGatewayRoutingPathStyleAsync(mode, ct)),
                 new TestCaseDescriptor(suiteId, "GatewayRoutingVirtualHosted", "Gateway routing keeps the SigV4 signature bound to the bucket-prefixed virtual-hosted upstream authority for a nested key using " + modeLabel, ct => TestSyntheticGatewayRoutingVirtualHostedAsync(mode, ct)),
+                new TestCaseDescriptor(suiteId, "GatewayRoutingBasePath", "Gateway BasePath prefixes the sent path while the SigV4 signature stays bound to the un-prefixed upstream path (special-character key) using " + modeLabel, ct => TestSyntheticGatewayRoutingBasePathAsync(mode, ct)),
+                new TestCaseDescriptor(suiteId, "GatewayRoutingPathRewrite", "Gateway PathRewrite transforms the sent path while the SigV4 signature stays bound to the untransformed upstream path using " + modeLabel, ct => TestSyntheticGatewayRoutingPathRewriteAsync(mode, ct)),
             };
 
             if (mode == RequestTransportMode.External)
@@ -681,6 +683,151 @@ namespace Test.Shared
             }
         }
 
+        private static async Task TestSyntheticGatewayRoutingBasePathAsync(RequestTransportMode mode, CancellationToken cancellationToken)
+        {
+            await using S3LiteSyntheticServer server = await S3LiteSyntheticServer.StartAsync(cancellationToken).ConfigureAwait(false);
+            SeedSyntheticServer(server);
+
+            // A non-standard upstream port so the signed path-style authority is host:8443.
+            const int upstreamPort = 8443;
+            const string basePath = "/proxy/s3";
+            HttpClient? httpClient = null;
+
+            try
+            {
+                if (mode == RequestTransportMode.External)
+                {
+                    httpClient = server.CreateHttpClient();
+                }
+
+                S3Client client = httpClient == null ? new S3Client() : new S3Client(httpClient);
+
+                Action<S3Client> configureUpstream = c => c
+                    .WithHostname(_GatewayUpstreamHostname)
+                    .WithPort(upstreamPort)
+                    .WithProtocol(ProtocolEnum.Https)
+                    .WithRegion(server.Region)
+                    .WithRequestStyle(RequestStyleEnum.PathStyle)
+                    .WithAccessKey(_GatewayAccessKey)
+                    .WithSecretKey(_GatewaySecretKey);
+
+                configureUpstream(client);
+                client.WithGateway(new GatewayConfig
+                {
+                    Hostname = server.Hostname,
+                    Port = server.Port,
+                    Protocol = ProtocolEnum.Http,
+                    BasePath = basePath
+                });
+
+                // A reference client with the identical upstream configuration but no gateway yields the path the
+                // signature is bound to; the gateway is expected to strip BasePath to recover it before forwarding.
+                S3Client reference = new S3Client();
+                configureUpstream(reference);
+                string upstreamPathAndQuery = new Uri(reference.BuildUrl(_SyntheticBucketName, _SyntheticHelloKey, null)).PathAndQuery;
+
+                // The synthetic server resolves the bucket from the path; with BasePath prefixed it sees a
+                // "proxy" bucket and 404s as a path-routing endpoint would. That is expected - this verifies how
+                // the request is addressed and signed, not that this server serves a sub-path-mounted request.
+                await AssertThrowsAsync<WebException>(
+                    () => client.Object.GetAsync(_SyntheticBucketName, _SyntheticHelloKey, token: cancellationToken)).ConfigureAwait(false);
+
+                AssertEqual(
+                    server.Hostname + ":" + server.Port.ToString(),
+                    server.LastHostHeader,
+                    "The gateway should receive Host set to the gateway host.");
+                AssertEqual(
+                    S3Client.CombineGatewayPath(basePath, upstreamPathAndQuery),
+                    server.LastRawPathAndQuery,
+                    "The sent path must be the signed upstream path prefixed with BasePath.");
+
+                AssertGatewaySignatureBoundToUpstream(
+                    server,
+                    server.Region,
+                    ProtocolEnum.Https,
+                    _GatewayUpstreamHostname,
+                    upstreamPort,
+                    upstreamPathAndQuery);
+
+                // Encoding round-trip: a key with a space must survive the BasePath rewrite byte-for-byte, so the
+                // gateway can strip the prefix and hand the upstream a path that still matches the signature.
+                const string spaceKey = "folder/file with spaces.txt";
+                string upstreamSpacePathAndQuery = new Uri(reference.BuildUrl(_SyntheticBucketName, spaceKey, null)).PathAndQuery;
+
+                await AssertThrowsAsync<WebException>(
+                    () => client.Object.GetAsync(_SyntheticBucketName, spaceKey, token: cancellationToken)).ConfigureAwait(false);
+
+                AssertEqual(
+                    S3Client.CombineGatewayPath(basePath, upstreamSpacePathAndQuery),
+                    server.LastRawPathAndQuery,
+                    "BasePath prefixing must preserve the percent-encoding of the upstream path.");
+            }
+            finally
+            {
+                httpClient?.Dispose();
+            }
+        }
+
+        private static async Task TestSyntheticGatewayRoutingPathRewriteAsync(RequestTransportMode mode, CancellationToken cancellationToken)
+        {
+            await using S3LiteSyntheticServer server = await S3LiteSyntheticServer.StartAsync(cancellationToken).ConfigureAwait(false);
+            SeedSyntheticServer(server);
+
+            HttpClient? httpClient = null;
+
+            try
+            {
+                if (mode == RequestTransportMode.External)
+                {
+                    httpClient = server.CreateHttpClient();
+                }
+
+                S3Client client = httpClient == null ? new S3Client() : new S3Client(httpClient);
+
+                Action<S3Client> configureUpstream = c => c
+                    .WithHostname(_GatewayUpstreamHostname)
+                    .WithPort(443)
+                    .WithProtocol(ProtocolEnum.Https)
+                    .WithRegion(server.Region)
+                    .WithRequestStyle(RequestStyleEnum.PathStyle)
+                    .WithAccessKey(_GatewayAccessKey)
+                    .WithSecretKey(_GatewaySecretKey);
+
+                configureUpstream(client);
+                client.WithGateway(new GatewayConfig
+                {
+                    Hostname = server.Hostname,
+                    Port = server.Port,
+                    Protocol = ProtocolEnum.Http,
+                    PathRewrite = p => "/api/v2" + p
+                });
+
+                S3Client reference = new S3Client();
+                configureUpstream(reference);
+                string upstreamPathAndQuery = new Uri(reference.BuildUrl(_SyntheticBucketName, _SyntheticFolderKeyOne, null)).PathAndQuery;
+
+                await AssertThrowsAsync<WebException>(
+                    () => client.Object.GetAsync(_SyntheticBucketName, _SyntheticFolderKeyOne, token: cancellationToken)).ConfigureAwait(false);
+
+                AssertEqual(
+                    "/api/v2" + upstreamPathAndQuery,
+                    server.LastRawPathAndQuery,
+                    "The sent path must be the signed upstream path transformed by PathRewrite.");
+
+                AssertGatewaySignatureBoundToUpstream(
+                    server,
+                    server.Region,
+                    ProtocolEnum.Https,
+                    _GatewayUpstreamHostname,
+                    443,
+                    upstreamPathAndQuery);
+            }
+            finally
+            {
+                httpClient?.Dispose();
+            }
+        }
+
         /// <summary>
         /// Proves the SigV4 signature carried by a gateway-routed request is bound to the upstream request
         /// authority (the host the gateway is expected to restore), not to the gateway host the request was
@@ -694,7 +841,8 @@ namespace Test.Shared
             string region,
             ProtocolEnum upstreamProtocol,
             string upstreamHost,
-            int upstreamPort)
+            int upstreamPort,
+            string? upstreamPathAndQuery = null)
         {
             NameValueCollection? received = server.LastRequestHeaders;
             AssertNotNull(received, "captured gateway request headers");
@@ -713,7 +861,9 @@ namespace Test.Shared
             AssertTrue(signedHeaders.Contains("host"), "The SigV4 SignedHeaders must include the host header.");
 
             string method = server.LastHttpMethod!;
-            string pathAndQuery = server.LastRawPathAndQuery!;
+            // The signature is bound to the upstream (signed) path, which differs from the captured sent path
+            // when a gateway BasePath/PathRewrite is in effect; callers pass it explicitly in that case.
+            string pathAndQuery = upstreamPathAndQuery ?? server.LastRawPathAndQuery!;
             string timestamp = received["x-amz-date"]
                 ?? throw new InvalidOperationException("The gateway request is missing the x-amz-date header.");
 
