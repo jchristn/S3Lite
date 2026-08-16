@@ -29,7 +29,9 @@ namespace Test.Shared
                     new TestCaseDescriptor(suiteId, "ClientCredentialState", "S3Client credential state tracks configured keys", ct => TestClientCredentialStateAsync()),
                     new TestCaseDescriptor(suiteId, "ApiConstructorsRejectNull", "API helper constructors reject null S3Client instances", ct => TestApiConstructorsRejectNullAsync()),
                     new TestCaseDescriptor(suiteId, "BucketGuardClauses", "Bucket APIs reject invalid arguments before issuing requests", ct => TestBucketGuardClausesAsync()),
-                    new TestCaseDescriptor(suiteId, "ObjectGuardClauses", "Object APIs reject invalid arguments before issuing requests", ct => TestObjectGuardClausesAsync())
+                    new TestCaseDescriptor(suiteId, "ObjectGuardClauses", "Object APIs reject invalid arguments before issuing requests", ct => TestObjectGuardClausesAsync()),
+                    new TestCaseDescriptor(suiteId, "GatewayConfigPortGuard", "GatewayConfig.Port rejects out-of-range values and accepts boundaries", ct => TestGatewayConfigPortGuardAsync()),
+                    new TestCaseDescriptor(suiteId, "GatewayRoundTrip", "S3Client can attach and clear a gateway configuration", ct => TestGatewayRoundTripAsync())
                 });
         }
 
@@ -49,7 +51,8 @@ namespace Test.Shared
                     new TestCaseDescriptor(suiteId, "Sha256NullBytes", "Sha256(null) matches the documented empty payload hash", ct => TestSha256NullBytesAsync()),
                     new TestCaseDescriptor(suiteId, "Sha256StreamMatchesByteArray", "Sha256(Stream) matches Sha256(byte[])", ct => TestSha256StreamMatchesByteArrayAsync()),
                     new TestCaseDescriptor(suiteId, "WebExceptionBuilderParsesError", "WebExceptionBuilder copies S3 XML error metadata", ct => TestWebExceptionBuilderParsesErrorAsync()),
-                    new TestCaseDescriptor(suiteId, "WebExceptionBuilderWithoutStatus", "WebExceptionBuilder throws when status code is unavailable", ct => TestWebExceptionBuilderWithoutStatusAsync())
+                    new TestCaseDescriptor(suiteId, "WebExceptionBuilderWithoutStatus", "WebExceptionBuilder throws when status code is unavailable", ct => TestWebExceptionBuilderWithoutStatusAsync()),
+                    new TestCaseDescriptor(suiteId, "CombineGatewayPathNormalization", "CombineGatewayPath normalizes prefix and signed-path slashes", ct => TestCombineGatewayPathNormalizationAsync())
                 });
         }
 
@@ -58,6 +61,66 @@ namespace Test.Shared
             AssertThrows<ArgumentNullException>(() => new BucketApis(null));
             AssertThrows<ArgumentNullException>(() => new ObjectApis(null));
             AssertThrows<ArgumentNullException>(() => new ServiceApis(null));
+            return Task.CompletedTask;
+        }
+
+        private static Task TestGatewayConfigPortGuardAsync()
+        {
+            // Negative: ports outside the valid TCP range are rejected by the property setter.
+            AssertThrows<ArgumentOutOfRangeException>(() => new GatewayConfig { Port = -1 });
+            AssertThrows<ArgumentOutOfRangeException>(() => new GatewayConfig { Port = 65536 });
+
+            // Positive: the boundary values are accepted and round-trip. Zero is the sentinel meaning
+            // "inherit S3Client.Port", so it must remain a legal value.
+            GatewayConfig low = new GatewayConfig { Port = 0 };
+            GatewayConfig high = new GatewayConfig { Port = 65535 };
+
+            AssertEqual(0, low.Port, "gateway inherit-sentinel port");
+            AssertEqual(65535, high.Port, "gateway maximum port");
+
+            return Task.CompletedTask;
+        }
+
+        private static Task TestGatewayRoundTripAsync()
+        {
+            S3Client client = new S3Client();
+
+            AssertNull(client.Gateway, "default gateway");
+
+            GatewayConfig gateway = new GatewayConfig
+            {
+                Hostname = "s3.gateway.example.com",
+                Port = 8443,
+                Protocol = ProtocolEnum.Https
+            };
+
+            S3Client returned = client.WithGateway(gateway);
+
+            AssertSame(client, returned, "WithGateway fluent return");
+            AssertSame(gateway, client.Gateway, "configured gateway instance");
+
+            client.WithGateway(null);
+            AssertNull(client.Gateway, "cleared gateway");
+
+            return Task.CompletedTask;
+        }
+
+        private static Task TestCombineGatewayPathNormalizationAsync()
+        {
+            // A prefix supplied with or without leading/trailing slashes yields the same combined path.
+            AssertEqual("/s3/bucket/key", S3Client.CombineGatewayPath("s3", "/bucket/key"), "prefix without leading slash");
+            AssertEqual("/s3/bucket/key", S3Client.CombineGatewayPath("/s3", "/bucket/key"), "prefix with leading slash");
+            AssertEqual("/s3/bucket/key", S3Client.CombineGatewayPath("/s3/", "/bucket/key"), "prefix with trailing slash");
+
+            // A signed path missing its leading slash is normalized to an absolute path.
+            AssertEqual("/s3/bucket/key", S3Client.CombineGatewayPath("/s3", "bucket/key"), "signed path without leading slash");
+
+            // An empty signed path collapses to the prefix root.
+            AssertEqual("/s3/", S3Client.CombineGatewayPath("/s3", String.Empty), "empty signed path");
+
+            // A multi-segment prefix is preserved intact.
+            AssertEqual("/proxy/s3/bucket/key", S3Client.CombineGatewayPath("/proxy/s3/", "/bucket/key"), "multi-segment prefix");
+
             return Task.CompletedTask;
         }
 
