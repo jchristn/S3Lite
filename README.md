@@ -18,6 +18,10 @@ S3Lite keeps the surface area small while still covering the core bucket and obj
 - Reverse-proxy / gateway routing that keeps the SigV4 signature bound to the upstream endpoint (useful for non-standard corporate reverse proxy configurations)
 - Multi-targeted package: `netstandard2.0`, `netstandard2.1`, `net8.0`, and `net10.0`
 
+## New in v1.2.3
+
+- Added `Object.DeleteMultipleAsync` for S3 batch delete (`POST /{bucket}?delete`), with keys and `ObjectIdentifier` overloads, quiet mode, and a `DeleteResult` that reports per-object successes and failures
+
 ## New in v1.2.0
 
 - Added reverse-proxy / gateway routing via `GatewayConfig` and `S3Client.WithGateway(GatewayConfig)`
@@ -228,6 +232,21 @@ ObjectMetadata metadata = await s3.Object.GetMetadataAsync("my-bucket", "notes/h
 byte[] data = await s3.Object.GetAsync("my-bucket", "notes/hello.txt");
 
 await s3.Object.DeleteAsync("my-bucket", "notes/hello.txt");
+
+// Batch delete (S3 delete-multiple). Returns per-object results; the call itself
+// succeeds even when some objects fail - inspect result.Errors for failures.
+DeleteResult result = await s3.Object.DeleteMultipleAsync(
+    "my-bucket",
+    new[] { "notes/hello.txt", "notes/world.txt" });
+
+foreach (DeletedObject deleted in result.Deleted) Console.WriteLine("deleted " + deleted.Key);
+foreach (DeleteError error in result.Errors) Console.WriteLine("failed " + error.Key + ": " + error.Code);
+
+// Overload accepting explicit object/version identifiers, plus optional quiet mode.
+DeleteResult quietResult = await s3.Object.DeleteMultipleAsync(
+    "my-bucket",
+    new[] { new ObjectIdentifier("notes/hello.txt"), new ObjectIdentifier("notes/world.txt", "versionId") },
+    quiet: true);
 ```
 
 ## Endpoint Guidance

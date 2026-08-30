@@ -21,6 +21,8 @@ namespace Test.Shared
         private readonly string _LargeObjectKey;
         private readonly string _EmptyObjectKey;
         private readonly string _SpecialObjectKey;
+        private readonly string _BatchObjectKeyOne;
+        private readonly string _BatchObjectKeyTwo;
         private readonly string _MissingObjectKey;
         private readonly string _SmallContent;
         private readonly string _OverwriteContent;
@@ -37,6 +39,8 @@ namespace Test.Shared
             _LargeObjectKey = _ObjectPrefix + "large-object.bin";
             _EmptyObjectKey = _ObjectPrefix + "empty-object.txt";
             _SpecialObjectKey = _ObjectPrefix + "file with spaces.txt";
+            _BatchObjectKeyOne = _ObjectPrefix + "batch-object-1.txt";
+            _BatchObjectKeyTwo = _ObjectPrefix + "batch-object-2.txt";
             _MissingObjectKey = _ObjectPrefix + "missing-" + Guid.NewGuid().ToString("N") + ".txt";
             _SmallContent = "Hello, S3Lite! This is a test object.";
             _OverwriteContent = "This content has been overwritten.";
@@ -46,7 +50,9 @@ namespace Test.Shared
                 _SmallObjectKey,
                 _LargeObjectKey,
                 _EmptyObjectKey,
-                _SpecialObjectKey
+                _SpecialObjectKey,
+                _BatchObjectKeyOne,
+                _BatchObjectKeyTwo
             };
         }
 
@@ -95,6 +101,22 @@ namespace Test.Shared
             get
             {
                 return _SpecialObjectKey;
+            }
+        }
+
+        internal string BatchObjectKeyOne
+        {
+            get
+            {
+                return _BatchObjectKeyOne;
+            }
+        }
+
+        internal string BatchObjectKeyTwo
+        {
+            get
+            {
+                return _BatchObjectKeyTwo;
             }
         }
 

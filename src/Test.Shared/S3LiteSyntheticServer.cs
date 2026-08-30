@@ -637,6 +637,11 @@ namespace Test.Shared
                     {
                         await HandleBucketListAsync(context, bucketName, query).ConfigureAwait(false);
                     }
+                    else if (String.Equals(context.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)
+                        && query.ContainsKey("delete"))
+                    {
+                        await HandleObjectDeleteMultipleAsync(context, bucketName, cancellationToken).ConfigureAwait(false);
+                    }
                     else if (String.Equals(context.Request.HttpMethod, "PUT", StringComparison.OrdinalIgnoreCase))
                     {
                         await HandleBucketWriteAsync(context, bucketName, cancellationToken).ConfigureAwait(false);
@@ -735,6 +740,76 @@ namespace Test.Shared
             }
 
             await WriteResponseAsync(context.Response, 204, "application/xml", Array.Empty<byte>(), false, null).ConfigureAwait(false);
+        }
+
+        private async Task HandleObjectDeleteMultipleAsync(HttpListenerContext context, string bucketName, CancellationToken cancellationToken)
+        {
+            if (!RequestHasAuthorization(context.Request))
+            {
+                await SendErrorAsync(context.Response, ErrorCode.AccessDenied, "/" + bucketName).ConfigureAwait(false);
+                return;
+            }
+
+            byte[] requestBody = await ReadRequestBodyAsync(context.Request, cancellationToken).ConfigureAwait(false);
+
+            DeleteMultipleRequest request;
+
+            try
+            {
+                request = _Serializer.DeserializeXml<DeleteMultipleRequest>(requestBody);
+            }
+            catch (Exception)
+            {
+                await SendErrorAsync(context.Response, ErrorCode.MalformedXML, "/" + bucketName).ConfigureAwait(false);
+                return;
+            }
+
+            bool bucketMissing = false;
+            DeleteResult result = new DeleteResult();
+
+            _BucketsLock.EnterWriteLock();
+            try
+            {
+                if (!_Buckets.TryGetValue(bucketName, out S3LiteSyntheticBucket? bucket) || bucket == null)
+                {
+                    bucketMissing = true;
+                }
+                else
+                {
+                    foreach (ObjectIdentifier identifier in request.Objects)
+                    {
+                        if (identifier == null || String.IsNullOrEmpty(identifier.Key)) continue;
+
+                        if (bucket.Objects.Remove(identifier.Key))
+                        {
+                            if (!request.Quiet)
+                            {
+                                result.Deleted.Add(new DeletedObject(identifier.Key, identifier.VersionId));
+                            }
+                        }
+                        else
+                        {
+                            result.Errors.Add(new DeleteError(
+                                identifier.Key,
+                                ErrorCode.NoSuchKey.ToString(),
+                                "The specified key does not exist.",
+                                identifier.VersionId));
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                _BucketsLock.ExitWriteLock();
+            }
+
+            if (bucketMissing)
+            {
+                await SendErrorAsync(context.Response, ErrorCode.NoSuchBucket, "/" + bucketName).ConfigureAwait(false);
+                return;
+            }
+
+            await SendXmlAsync(context.Response, 200, result, null).ConfigureAwait(false);
         }
 
         private async Task HandleObjectGetAsync(HttpListenerContext context, string bucketName, string key, bool headOnly)

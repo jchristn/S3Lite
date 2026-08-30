@@ -88,6 +88,162 @@
             Instantiate.
             </summary>
         </member>
+        <member name="T:S3Lite.ApiObjects.DeletedObject">
+            <summary>
+            Describes a single object that was successfully deleted as part of a delete-multiple
+            (batch delete) operation.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.DeletedObject.Key">
+            <summary>
+            Object key.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.DeletedObject.VersionId">
+            <summary>
+            Version ID of the deleted object, when versioning applies.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.DeletedObject.DeleteMarker">
+            <summary>
+            Indicates whether the deleted object was (or became) a delete marker.
+            Null when the server did not report this field.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.DeletedObject.DeleteMarkerVersionId">
+            <summary>
+            Version ID of the delete marker created by the delete, when applicable.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.DeletedObject.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.DeletedObject.#ctor(System.String,System.String)">
+            <summary>
+            Instantiate.
+            </summary>
+            <param name="key">Object key.</param>
+            <param name="versionId">Version ID.</param>
+        </member>
+        <member name="M:S3Lite.ApiObjects.DeletedObject.ShouldSerializeVersionId">
+            <summary>
+            Helper method for XML serialization.
+            </summary>
+            <returns>Boolean.</returns>
+        </member>
+        <member name="M:S3Lite.ApiObjects.DeletedObject.ShouldSerializeDeleteMarker">
+            <summary>
+            Helper method for XML serialization.
+            </summary>
+            <returns>Boolean.</returns>
+        </member>
+        <member name="M:S3Lite.ApiObjects.DeletedObject.ShouldSerializeDeleteMarkerVersionId">
+            <summary>
+            Helper method for XML serialization.
+            </summary>
+            <returns>Boolean.</returns>
+        </member>
+        <member name="T:S3Lite.ApiObjects.DeleteError">
+            <summary>
+            Describes a single object that could not be deleted as part of a delete-multiple
+            (batch delete) operation.  The delete-multiple call returns HTTP 200 even when some
+            objects fail; per-object failures are surfaced here rather than as a thrown exception.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.DeleteError.Key">
+            <summary>
+            Object key that failed to delete.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.DeleteError.VersionId">
+            <summary>
+            Version ID associated with the failed delete, when applicable.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.DeleteError.Code">
+            <summary>
+            S3 error code string, for example <c>AccessDenied</c> or <c>NoSuchKey</c>.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.DeleteError.Message">
+            <summary>
+            Human-readable error message describing the failure.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.DeleteError.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.DeleteError.#ctor(System.String,System.String,System.String,System.String)">
+            <summary>
+            Instantiate.
+            </summary>
+            <param name="key">Object key.</param>
+            <param name="code">Error code.</param>
+            <param name="message">Error message.</param>
+            <param name="versionId">Version ID.</param>
+        </member>
+        <member name="M:S3Lite.ApiObjects.DeleteError.ShouldSerializeVersionId">
+            <summary>
+            Helper method for XML serialization.
+            </summary>
+            <returns>Boolean.</returns>
+        </member>
+        <member name="T:S3Lite.ApiObjects.DeleteMultipleRequest">
+            <summary>
+            Request payload for a delete-multiple (batch delete) operation.
+            Serializes to the S3 <c>Delete</c> document containing the objects to remove.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.DeleteMultipleRequest.Quiet">
+            <summary>
+            Enables quiet mode.  When true, the server returns only entries for objects that
+            could not be deleted; successfully deleted objects are omitted from the response.
+            Default value is <c>false</c>.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.DeleteMultipleRequest.Objects">
+            <summary>
+            Objects to delete.  Must contain between 1 and 1000 entries.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.DeleteMultipleRequest.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.DeleteMultipleRequest.#ctor(System.Collections.Generic.List{S3Lite.ApiObjects.ObjectIdentifier},System.Boolean)">
+            <summary>
+            Instantiate.
+            </summary>
+            <param name="objects">Objects to delete.</param>
+            <param name="quiet">Enable quiet mode.</param>
+        </member>
+        <member name="T:S3Lite.ApiObjects.DeleteResult">
+            <summary>
+            Result of a delete-multiple (batch delete) operation.
+            Contains the objects that were deleted and, separately, any per-object failures.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.DeleteResult.Deleted">
+            <summary>
+            Objects that were successfully deleted.
+            Empty when the request used quiet mode.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.DeleteResult.Errors">
+            <summary>
+            Objects that could not be deleted, each with its error code and message.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.DeleteResult.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
         <member name="T:S3Lite.ApiObjects.Error">
             <summary>
             Amazon S3 error.
@@ -684,6 +840,41 @@
             </summary>
             <returns>Boolean</returns>
         </member>
+        <member name="T:S3Lite.ApiObjects.ObjectIdentifier">
+            <summary>
+            Identifies a single object to delete as part of a delete-multiple (batch delete) request.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ObjectIdentifier.Key">
+            <summary>
+            Object key.  Required.
+            </summary>
+        </member>
+        <member name="P:S3Lite.ApiObjects.ObjectIdentifier.VersionId">
+            <summary>
+            Version ID of the object to delete.  Optional.
+            When null or empty, the current version is targeted.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.ObjectIdentifier.#ctor">
+            <summary>
+            Instantiate.
+            </summary>
+        </member>
+        <member name="M:S3Lite.ApiObjects.ObjectIdentifier.#ctor(System.String,System.String)">
+            <summary>
+            Instantiate.
+            </summary>
+            <param name="key">Object key.</param>
+            <param name="versionId">Version ID, or null to target the current version.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="key"/> is null or empty.</exception>
+        </member>
+        <member name="M:S3Lite.ApiObjects.ObjectIdentifier.ShouldSerializeVersionId">
+            <summary>
+            Helper method for XML serialization.
+            </summary>
+            <returns>Boolean.</returns>
+        </member>
         <member name="T:S3Lite.ApiObjects.ObjectMetadata">
             <summary>
             Object metadata.
@@ -1029,6 +1220,42 @@
             <param name="token">Cancellation token.</param>
             <returns>Task.</returns>
         </member>
+        <member name="M:S3Lite.ObjectApis.DeleteMultipleAsync(System.String,System.Collections.Generic.IEnumerable{S3Lite.ApiObjects.ObjectIdentifier},System.Boolean,System.Collections.Specialized.NameValueCollection,System.Threading.CancellationToken)">
+            <summary>
+            Delete multiple objects in a single request (batch delete).
+            Issues an S3 POST to the bucket with the <c>?delete</c> subresource and a Content-MD5 header.
+            The operation returns HTTP 200 even when some objects fail; inspect
+            <see cref="P:S3Lite.ApiObjects.DeleteResult.Errors"/> for per-object failures rather than relying on a thrown exception.
+            </summary>
+            <param name="bucket">Bucket.</param>
+            <param name="objects">Objects to delete.  Must contain between 1 and 1000 entries, each with a non-empty key.</param>
+            <param name="quiet">When true, enables quiet mode so the response omits entries for successfully deleted objects and returns only failures.  Default is false.</param>
+            <param name="headers">Additional headers to add to the request.</param>
+            <param name="token">Cancellation token.</param>
+            <returns>Delete result describing the deleted objects and any per-object errors.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="bucket"/> is null or empty, or when <paramref name="objects"/> is null.</exception>
+            <exception cref="T:System.ArgumentException">Thrown when <paramref name="objects"/> is empty or contains a null entry or an entry with a null or empty key.</exception>
+            <exception cref="T:System.ArgumentOutOfRangeException">Thrown when <paramref name="objects"/> contains more than 1000 entries.</exception>
+            <exception cref="T:System.Net.WebException">Thrown when the request itself fails, for example when the bucket does not exist or access is denied.</exception>
+        </member>
+        <member name="M:S3Lite.ObjectApis.DeleteMultipleAsync(System.String,System.Collections.Generic.IEnumerable{System.String},System.Boolean,System.Collections.Specialized.NameValueCollection,System.Threading.CancellationToken)">
+            <summary>
+            Delete multiple objects in a single request (batch delete) by key.
+            Convenience overload that targets the current version of each supplied key.
+            The operation returns HTTP 200 even when some objects fail; inspect
+            <see cref="P:S3Lite.ApiObjects.DeleteResult.Errors"/> for per-object failures rather than relying on a thrown exception.
+            </summary>
+            <param name="bucket">Bucket.</param>
+            <param name="keys">Object keys to delete.  Must contain between 1 and 1000 non-empty keys.</param>
+            <param name="quiet">When true, enables quiet mode so the response omits entries for successfully deleted objects and returns only failures.  Default is false.</param>
+            <param name="headers">Additional headers to add to the request.</param>
+            <param name="token">Cancellation token.</param>
+            <returns>Delete result describing the deleted objects and any per-object errors.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="bucket"/> is null or empty, or when <paramref name="keys"/> is null.</exception>
+            <exception cref="T:System.ArgumentException">Thrown when <paramref name="keys"/> is empty or contains a null or empty key.</exception>
+            <exception cref="T:System.ArgumentOutOfRangeException">Thrown when <paramref name="keys"/> contains more than 1000 entries.</exception>
+            <exception cref="T:System.Net.WebException">Thrown when the request itself fails, for example when the bucket does not exist or access is denied.</exception>
+        </member>
         <member name="T:S3Lite.ProtocolEnum">
             <summary>
             Protocol.
@@ -1322,6 +1549,13 @@
             </summary>
             <param name="data">Byte array.</param>
             <returns>Hash.</returns>
+        </member>
+        <member name="M:S3Lite.S3Client.Md5Base64(System.Byte[])">
+            <summary>
+            Generate a base64-encoded MD5 digest for a byte array, suitable for the Content-MD5 header.
+            </summary>
+            <param name="data">Byte array.</param>
+            <returns>Base64-encoded MD5 digest.</returns>
         </member>
         <member name="T:S3Lite.SerializationHelper">
             <summary>

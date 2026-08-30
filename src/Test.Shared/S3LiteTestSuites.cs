@@ -135,6 +135,8 @@ namespace Test.Shared
                     CreateWriteCaseOrSkip(settings, suiteId, "WriteSpecialCharacterObject", "Object.WriteAsync stores keys with spaces", bucketRequiredReason, writeTestsSkippedReason, ct => TestWriteSpecialCharacterObjectAsync(context, ct)),
                     CreateWriteCaseOrSkip(settings, suiteId, "ReadSpecialCharacterObject", "Object.GetAsync reads keys with spaces", bucketRequiredReason, writeTestsSkippedReason, ct => TestReadSpecialCharacterObjectAsync(context, ct)),
                     CreateWriteCaseOrSkip(settings, suiteId, "ListByPrefix", "Bucket.ListAsync filters by the suite prefix", bucketRequiredReason, writeTestsSkippedReason, ct => TestListByPrefixAsync(context, ct)),
+                    CreateWriteCaseOrSkip(settings, suiteId, "WriteBatchObjects", "Object.WriteAsync stores the batch-delete fixtures", bucketRequiredReason, writeTestsSkippedReason, ct => TestWriteBatchObjectsAsync(context, ct)),
+                    CreateWriteCaseOrSkip(settings, suiteId, "DeleteMultipleObjects", "Object.DeleteMultipleAsync removes several objects in one request", bucketRequiredReason, writeTestsSkippedReason, ct => TestDeleteMultipleObjectsAsync(context, ct)),
                     settings.HasBucket && !settings.SkipWriteTests && !settings.SkipCleanup
                         ? new TestCaseDescriptor(
                             suiteId,
@@ -394,6 +396,53 @@ namespace Test.Shared
             Require(keys.Contains(context.LargeObjectKey), "Prefix listing did not include '" + context.LargeObjectKey + "'.");
             Require(keys.Contains(context.EmptyObjectKey), "Prefix listing did not include '" + context.EmptyObjectKey + "'.");
             Require(keys.Contains(context.SpecialObjectKey), "Prefix listing did not include '" + context.SpecialObjectKey + "'.");
+        }
+
+        private static async Task TestWriteBatchObjectsAsync(S3LiteTestContext context, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            S3Client client = context.CreateClient();
+
+            await client.Object.WriteAsync(
+                context.BucketName,
+                context.BatchObjectKeyOne,
+                context.GetUtf8Bytes("batch one"),
+                "text/plain",
+                token: cancellationToken).ConfigureAwait(false);
+
+            await client.Object.WriteAsync(
+                context.BucketName,
+                context.BatchObjectKeyTwo,
+                context.GetUtf8Bytes("batch two"),
+                "text/plain",
+                token: cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task TestDeleteMultipleObjectsAsync(S3LiteTestContext context, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            S3Client client = context.CreateClient();
+
+            DeleteResult result = await client.Object.DeleteMultipleAsync(
+                context.BucketName,
+                new List<string> { context.BatchObjectKeyOne, context.BatchObjectKeyTwo },
+                token: cancellationToken).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("DeleteMultipleAsync returned null.");
+
+            Require(result.Errors.Count == 0, "DeleteMultipleAsync reported " + result.Errors.Count.ToString() + " unexpected per-object error(s).");
+            Require(result.Deleted.Count == 2, "DeleteMultipleAsync reported " + result.Deleted.Count.ToString() + " deleted object(s) instead of the expected 2.");
+
+            List<string> deletedKeys = result.Deleted.Select(deleted => deleted.Key).ToList();
+            Require(deletedKeys.Contains(context.BatchObjectKeyOne), "DeleteMultipleAsync result did not include '" + context.BatchObjectKeyOne + "'.");
+            Require(deletedKeys.Contains(context.BatchObjectKeyTwo), "DeleteMultipleAsync result did not include '" + context.BatchObjectKeyTwo + "'.");
+
+            bool firstExists = await client.Object.ExistsAsync(context.BucketName, context.BatchObjectKeyOne, token: cancellationToken).ConfigureAwait(false);
+            bool secondExists = await client.Object.ExistsAsync(context.BucketName, context.BatchObjectKeyTwo, token: cancellationToken).ConfigureAwait(false);
+
+            Require(!firstExists, "Batch delete did not remove '" + context.BatchObjectKeyOne + "'.");
+            Require(!secondExists, "Batch delete did not remove '" + context.BatchObjectKeyTwo + "'.");
         }
 
         private static async Task TestCleanupObjectsAsync(S3LiteTestContext context, CancellationToken cancellationToken)

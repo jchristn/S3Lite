@@ -27,6 +27,8 @@ namespace S3Lite
 
         internal static string ContentTypeXml = "application/xml";
 
+        internal static string QueryParameterDelete = "?delete";
+
         internal static string UrlPatternPathStyle = "{protocol}://{hostname}:{port}/{bucket}/{key}";
         internal static string UrlPatternVirtualHosted = "{protocol}://{bucket}.{service}.{region}.{hostname}:{port}/{key}";
 

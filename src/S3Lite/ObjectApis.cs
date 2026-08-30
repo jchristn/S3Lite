@@ -7,9 +7,11 @@
     using System.Threading.Tasks;
     using System.Threading;
     using S3Lite.ApiObjects;
+    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Collections.Specialized;
+    using System.Text;
 
     /// <summary>
     /// Amazon S3 object APIs.
@@ -314,6 +316,126 @@
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Delete multiple objects in a single request (batch delete).
+        /// Issues an S3 POST to the bucket with the <c>?delete</c> subresource and a Content-MD5 header.
+        /// The operation returns HTTP 200 even when some objects fail; inspect
+        /// <see cref="DeleteResult.Errors"/> for per-object failures rather than relying on a thrown exception.
+        /// </summary>
+        /// <param name="bucket">Bucket.</param>
+        /// <param name="objects">Objects to delete.  Must contain between 1 and 1000 entries, each with a non-empty key.</param>
+        /// <param name="quiet">When true, enables quiet mode so the response omits entries for successfully deleted objects and returns only failures.  Default is false.</param>
+        /// <param name="headers">Additional headers to add to the request.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Delete result describing the deleted objects and any per-object errors.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="bucket"/> is null or empty, or when <paramref name="objects"/> is null.</exception>
+        /// <exception cref="ArgumentException">Thrown when <paramref name="objects"/> is empty or contains a null entry or an entry with a null or empty key.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="objects"/> contains more than 1000 entries.</exception>
+        /// <exception cref="WebException">Thrown when the request itself fails, for example when the bucket does not exist or access is denied.</exception>
+        public async Task<DeleteResult> DeleteMultipleAsync(
+            string bucket,
+            IEnumerable<ObjectIdentifier> objects,
+            bool quiet = false,
+            NameValueCollection headers = null,
+            CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(bucket)) throw new ArgumentNullException(nameof(bucket));
+            if (objects == null) throw new ArgumentNullException(nameof(objects));
+
+            List<ObjectIdentifier> objectList = objects.ToList();
+            if (objectList.Count < 1) throw new ArgumentException("At least one object must be supplied.", nameof(objects));
+            if (objectList.Count > 1000) throw new ArgumentOutOfRangeException(nameof(objects), "A maximum of 1000 objects may be deleted per request.");
+
+            foreach (ObjectIdentifier obj in objectList)
+            {
+                if (obj == null) throw new ArgumentException("One or more supplied objects are null.", nameof(objects));
+                if (String.IsNullOrEmpty(obj.Key)) throw new ArgumentException("One or more supplied objects have a null or empty key.", nameof(objects));
+            }
+
+            token.ThrowIfCancellationRequested();
+
+            string header = _Header + "DeleteMultiple ";
+
+            string url = _Client.BuildUrl(bucket, null, null) + Constants.QueryParameterDelete;
+
+            DeleteMultipleRequest request = new DeleteMultipleRequest(objectList, quiet);
+            byte[] body = Encoding.UTF8.GetBytes(_Client.Serializer.SerializeXml(request));
+            string contentMd5 = _Client.Md5Base64(body);
+
+            using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Post, url))
+            {
+                _Client.Logger?.Invoke(_Header + "POST " + url);
+
+                if (req.Headers == null) req.Headers = new NameValueCollection(StringComparer.InvariantCultureIgnoreCase);
+                if (headers != null)
+                {
+                    foreach (string key in headers.AllKeys)
+                    {
+                        req.Headers[key] = headers[key];
+                    }
+                }
+
+                req.Headers[Constants.HeaderContentMd5] = contentMd5;
+                req.ContentType = Constants.ContentTypeXml;
+
+                using (RestResponse resp = await _Client.BuildRestResponse(req, body, token).ConfigureAwait(false))
+                {
+                    if (resp == null)
+                    {
+                        _Client.Logger?.Invoke(header + "no response from " + url);
+                        throw new WebException(Constants.NoRestResponseExceptionMessage + url);
+                    }
+                    else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
+                    {
+                        _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
+                        return _Client.Serializer.DeserializeXml<DeleteResult>(resp.DataAsString);
+                    }
+                    else
+                    {
+                        _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
+                        WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
+                        throw e;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Delete multiple objects in a single request (batch delete) by key.
+        /// Convenience overload that targets the current version of each supplied key.
+        /// The operation returns HTTP 200 even when some objects fail; inspect
+        /// <see cref="DeleteResult.Errors"/> for per-object failures rather than relying on a thrown exception.
+        /// </summary>
+        /// <param name="bucket">Bucket.</param>
+        /// <param name="keys">Object keys to delete.  Must contain between 1 and 1000 non-empty keys.</param>
+        /// <param name="quiet">When true, enables quiet mode so the response omits entries for successfully deleted objects and returns only failures.  Default is false.</param>
+        /// <param name="headers">Additional headers to add to the request.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Delete result describing the deleted objects and any per-object errors.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="bucket"/> is null or empty, or when <paramref name="keys"/> is null.</exception>
+        /// <exception cref="ArgumentException">Thrown when <paramref name="keys"/> is empty or contains a null or empty key.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="keys"/> contains more than 1000 entries.</exception>
+        /// <exception cref="WebException">Thrown when the request itself fails, for example when the bucket does not exist or access is denied.</exception>
+        public async Task<DeleteResult> DeleteMultipleAsync(
+            string bucket,
+            IEnumerable<string> keys,
+            bool quiet = false,
+            NameValueCollection headers = null,
+            CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(bucket)) throw new ArgumentNullException(nameof(bucket));
+            if (keys == null) throw new ArgumentNullException(nameof(keys));
+
+            List<ObjectIdentifier> objects = new List<ObjectIdentifier>();
+            foreach (string key in keys)
+            {
+                if (String.IsNullOrEmpty(key)) throw new ArgumentException("One or more supplied object keys are null or empty.", nameof(keys));
+                objects.Add(new ObjectIdentifier(key));
+            }
+
+            return await DeleteMultipleAsync(bucket, objects, quiet, headers, token).ConfigureAwait(false);
         }
 
         #endregion

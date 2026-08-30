@@ -776,6 +776,21 @@ namespace S3Lite
             }
         }
 
+        /// <summary>
+        /// Generate a base64-encoded MD5 digest for a byte array, suitable for the Content-MD5 header.
+        /// </summary>
+        /// <param name="data">Byte array.</param>
+        /// <returns>Base64-encoded MD5 digest.</returns>
+        internal string Md5Base64(byte[] data)
+        {
+            if (data == null) data = Array.Empty<byte>();
+
+            using (MD5 md5 = MD5.Create())
+            {
+                return Convert.ToBase64String(md5.ComputeHash(data));
+            }
+        }
+
         #endregion
 
         #region Private-Methods

@@ -1,6 +1,7 @@
 namespace Test.Shared
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Net;
     using System.Net.Http;
@@ -30,6 +31,8 @@ namespace Test.Shared
                     new TestCaseDescriptor(suiteId, "ApiConstructorsRejectNull", "API helper constructors reject null S3Client instances", ct => TestApiConstructorsRejectNullAsync()),
                     new TestCaseDescriptor(suiteId, "BucketGuardClauses", "Bucket APIs reject invalid arguments before issuing requests", ct => TestBucketGuardClausesAsync()),
                     new TestCaseDescriptor(suiteId, "ObjectGuardClauses", "Object APIs reject invalid arguments before issuing requests", ct => TestObjectGuardClausesAsync()),
+                    new TestCaseDescriptor(suiteId, "ObjectDeleteMultipleGuardClauses", "Object.DeleteMultipleAsync rejects invalid arguments before issuing requests", ct => TestObjectDeleteMultipleGuardClausesAsync()),
+                    new TestCaseDescriptor(suiteId, "ObjectIdentifierGuardClauses", "ObjectIdentifier rejects a null or empty key", ct => TestObjectIdentifierGuardClausesAsync()),
                     new TestCaseDescriptor(suiteId, "GatewayConfigPortGuard", "GatewayConfig.Port rejects out-of-range values and accepts boundaries", ct => TestGatewayConfigPortGuardAsync()),
                     new TestCaseDescriptor(suiteId, "GatewayRoundTrip", "S3Client can attach and clear a gateway configuration", ct => TestGatewayRoundTripAsync())
                 });
@@ -279,6 +282,49 @@ namespace Test.Shared
             await AssertThrowsAsync<ArgumentNullException>(() => client.Object.WriteAsync("bucket", null, Array.Empty<byte>())).ConfigureAwait(false);
             await AssertThrowsAsync<ArgumentNullException>(() => client.Object.DeleteAsync(null, "key")).ConfigureAwait(false);
             await AssertThrowsAsync<ArgumentNullException>(() => client.Object.DeleteAsync("bucket", null)).ConfigureAwait(false);
+        }
+
+        private static async Task TestObjectDeleteMultipleGuardClausesAsync()
+        {
+            S3Client client = new S3Client();
+
+            // Negative: null or empty bucket.
+            await AssertThrowsAsync<ArgumentNullException>(() => client.Object.DeleteMultipleAsync(null, new[] { "key" })).ConfigureAwait(false);
+            await AssertThrowsAsync<ArgumentNullException>(() => client.Object.DeleteMultipleAsync(String.Empty, new[] { "key" })).ConfigureAwait(false);
+
+            // Negative: null collections (both overloads).
+            await AssertThrowsAsync<ArgumentNullException>(() => client.Object.DeleteMultipleAsync("bucket", (IEnumerable<string>)null!)).ConfigureAwait(false);
+            await AssertThrowsAsync<ArgumentNullException>(() => client.Object.DeleteMultipleAsync("bucket", (IEnumerable<ObjectIdentifier>)null!)).ConfigureAwait(false);
+
+            // Negative: empty collections (both overloads).
+            await AssertThrowsAsync<ArgumentException>(() => client.Object.DeleteMultipleAsync("bucket", new List<string>())).ConfigureAwait(false);
+            await AssertThrowsAsync<ArgumentException>(() => client.Object.DeleteMultipleAsync("bucket", new List<ObjectIdentifier>())).ConfigureAwait(false);
+
+            // Negative: an entry with a null or empty key.
+            await AssertThrowsAsync<ArgumentException>(() => client.Object.DeleteMultipleAsync("bucket", new[] { "good", String.Empty })).ConfigureAwait(false);
+            await AssertThrowsAsync<ArgumentException>(() => client.Object.DeleteMultipleAsync("bucket", new List<ObjectIdentifier> { new ObjectIdentifier { Key = null } })).ConfigureAwait(false);
+
+            // Negative: more than 1000 objects.
+            List<string> tooMany = new List<string>();
+            for (int i = 0; i < 1001; i++) tooMany.Add("key-" + i.ToString());
+            await AssertThrowsAsync<ArgumentOutOfRangeException>(() => client.Object.DeleteMultipleAsync("bucket", tooMany)).ConfigureAwait(false);
+        }
+
+        private static Task TestObjectIdentifierGuardClausesAsync()
+        {
+            // Negative: the convenience constructor rejects a null or empty key.
+            AssertThrows<ArgumentNullException>(() => new ObjectIdentifier(null));
+            AssertThrows<ArgumentNullException>(() => new ObjectIdentifier(String.Empty));
+
+            // Positive: a valid key round-trips, and a version id is optional.
+            ObjectIdentifier withoutVersion = new ObjectIdentifier("my-key");
+            AssertEqual("my-key", withoutVersion.Key, "object identifier key");
+            AssertNull(withoutVersion.VersionId, "object identifier version id");
+
+            ObjectIdentifier withVersion = new ObjectIdentifier("my-key", "v2");
+            AssertEqual("v2", withVersion.VersionId, "object identifier explicit version id");
+
+            return Task.CompletedTask;
         }
 
         private static Task TestSha256NullBytesAsync()

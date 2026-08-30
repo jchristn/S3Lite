@@ -51,6 +51,7 @@ namespace Test.Shared
                     new TestCaseDescriptor(suiteId, "ObjectGetMetadataMissingObject", "Object.GetMetadataAsync reports 404 for a missing key using " + modeLabel, ct => TestSyntheticObjectGetMetadataMissingObjectAsync(mode, ct)),
                     new TestCaseDescriptor(suiteId, "ObjectWriteDenied", "Object.WriteAsync rejects anonymous writes using " + modeLabel, ct => TestSyntheticObjectWriteDeniedAsync(mode, ct)),
                     new TestCaseDescriptor(suiteId, "ObjectDeleteDenied", "Object.DeleteAsync rejects anonymous deletes using " + modeLabel, ct => TestSyntheticObjectDeleteDeniedAsync(mode, ct)),
+                    new TestCaseDescriptor(suiteId, "ObjectDeleteMultipleDenied", "Object.DeleteMultipleAsync rejects anonymous batch deletes using " + modeLabel, ct => TestSyntheticObjectDeleteMultipleDeniedAsync(mode, ct)),
                     new TestCaseDescriptor(suiteId, "BucketWriteDenied", "Bucket.WriteAsync rejects anonymous bucket creation using " + modeLabel, ct => TestSyntheticBucketWriteDeniedAsync(mode, ct)),
                     new TestCaseDescriptor(suiteId, "BucketDeleteDenied", "Bucket.DeleteAsync rejects anonymous bucket deletion using " + modeLabel, ct => TestSyntheticBucketDeleteDeniedAsync(mode, ct))
                 });
@@ -72,6 +73,11 @@ namespace Test.Shared
                 new TestCaseDescriptor(suiteId, "ObjectOverwrite", "Object.WriteAsync overwrites existing content using " + modeLabel, ct => TestSyntheticObjectOverwriteAsync(mode, ct)),
                 new TestCaseDescriptor(suiteId, "ObjectWriteNullData", "Object.WriteAsync accepts null data and stores an empty object using " + modeLabel, ct => TestSyntheticObjectWriteNullDataAsync(mode, ct)),
                 new TestCaseDescriptor(suiteId, "ObjectDeleteMissing", "Object.DeleteAsync succeeds when the object is already missing using " + modeLabel, ct => TestSyntheticObjectDeleteMissingAsync(mode, ct)),
+                new TestCaseDescriptor(suiteId, "ObjectDeleteMultipleRemovesObjects", "Object.DeleteMultipleAsync removes all supplied objects using " + modeLabel, ct => TestSyntheticObjectDeleteMultipleRemovesObjectsAsync(mode, ct)),
+                new TestCaseDescriptor(suiteId, "ObjectDeleteMultipleByKeys", "Object.DeleteMultipleAsync (keys overload) removes objects using " + modeLabel, ct => TestSyntheticObjectDeleteMultipleByKeysAsync(mode, ct)),
+                new TestCaseDescriptor(suiteId, "ObjectDeleteMultiplePartialFailure", "Object.DeleteMultipleAsync reports per-object errors for missing keys using " + modeLabel, ct => TestSyntheticObjectDeleteMultiplePartialFailureAsync(mode, ct)),
+                new TestCaseDescriptor(suiteId, "ObjectDeleteMultipleQuiet", "Object.DeleteMultipleAsync quiet mode omits deleted entries using " + modeLabel, ct => TestSyntheticObjectDeleteMultipleQuietAsync(mode, ct)),
+                new TestCaseDescriptor(suiteId, "ObjectDeleteMultipleMissingBucket", "Object.DeleteMultipleAsync reports NoSuchBucket using " + modeLabel, ct => TestSyntheticObjectDeleteMultipleMissingBucketAsync(mode, ct)),
                 new TestCaseDescriptor(suiteId, "ObjectSpecialCharacterKey", "Object APIs round-trip keys with spaces using " + modeLabel, ct => TestSyntheticObjectSpecialCharacterKeyAsync(mode, ct)),
                 new TestCaseDescriptor(suiteId, "ObjectVersionIdParameter", "Object APIs accept versionId query parameters using " + modeLabel, ct => TestSyntheticObjectVersionIdParameterAsync(mode, ct)),
                 new TestCaseDescriptor(suiteId, "ObjectWriteMissingBucket", "Object.WriteAsync reports NoSuchBucket using " + modeLabel, ct => TestSyntheticObjectWriteMissingBucketAsync(mode, ct)),
@@ -366,6 +372,127 @@ namespace Test.Shared
             {
                 await client.Object.DeleteAsync(_SyntheticBucketName, _SyntheticMissingObjectKey, token: ct).ConfigureAwait(false);
                 AssertFalse(server.ObjectExists(_SyntheticBucketName, _SyntheticMissingObjectKey), "Missing object should still be absent after delete.");
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task TestSyntheticObjectDeleteMultipleDeniedAsync(RequestTransportMode mode, CancellationToken cancellationToken)
+        {
+            await ExecuteWithSyntheticClientAsync(mode, false, async (server, httpClient, client, ct) =>
+            {
+                await AssertThrowsAsync<WebException>(
+                    () => client.Object.DeleteMultipleAsync(_SyntheticBucketName, new[] { _SyntheticHelloKey }, token: ct),
+                    exception => AssertWebException(exception, 403, ErrorCode.AccessDenied.ToString())).ConfigureAwait(false);
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task TestSyntheticObjectDeleteMultipleRemovesObjectsAsync(RequestTransportMode mode, CancellationToken cancellationToken)
+        {
+            await ExecuteWithSyntheticClientAsync(mode, true, async (server, httpClient, client, ct) =>
+            {
+                string keyA = GenerateObjectKey();
+                string keyB = GenerateObjectKey();
+                string keyC = GenerateObjectKey();
+
+                await client.Object.WriteAsync(_SyntheticBucketName, keyA, GetBytes("a"), "text/plain", token: ct).ConfigureAwait(false);
+                await client.Object.WriteAsync(_SyntheticBucketName, keyB, GetBytes("b"), "text/plain", token: ct).ConfigureAwait(false);
+                await client.Object.WriteAsync(_SyntheticBucketName, keyC, GetBytes("c"), "text/plain", token: ct).ConfigureAwait(false);
+
+                DeleteResult result = await client.Object.DeleteMultipleAsync(
+                    _SyntheticBucketName,
+                    new List<ObjectIdentifier>
+                    {
+                        new ObjectIdentifier(keyA),
+                        new ObjectIdentifier(keyB),
+                        new ObjectIdentifier(keyC)
+                    },
+                    token: ct).ConfigureAwait(false);
+
+                AssertEqual(3, result.Deleted.Count, "deleted object count");
+                AssertEqual(0, result.Errors.Count, "delete error count");
+                AssertTrue(result.Deleted.Any(deleted => String.Equals(deleted.Key, keyA, StringComparison.Ordinal)), "Deleted list should contain keyA.");
+                AssertTrue(result.Deleted.Any(deleted => String.Equals(deleted.Key, keyB, StringComparison.Ordinal)), "Deleted list should contain keyB.");
+                AssertTrue(result.Deleted.Any(deleted => String.Equals(deleted.Key, keyC, StringComparison.Ordinal)), "Deleted list should contain keyC.");
+                AssertFalse(server.ObjectExists(_SyntheticBucketName, keyA), "keyA should be removed from the synthetic server.");
+                AssertFalse(server.ObjectExists(_SyntheticBucketName, keyB), "keyB should be removed from the synthetic server.");
+                AssertFalse(server.ObjectExists(_SyntheticBucketName, keyC), "keyC should be removed from the synthetic server.");
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task TestSyntheticObjectDeleteMultipleByKeysAsync(RequestTransportMode mode, CancellationToken cancellationToken)
+        {
+            await ExecuteWithSyntheticClientAsync(mode, true, async (server, httpClient, client, ct) =>
+            {
+                string keyA = GenerateObjectKey();
+                string keyB = GenerateObjectKey();
+
+                await client.Object.WriteAsync(_SyntheticBucketName, keyA, GetBytes("a"), "text/plain", token: ct).ConfigureAwait(false);
+                await client.Object.WriteAsync(_SyntheticBucketName, keyB, GetBytes("b"), "text/plain", token: ct).ConfigureAwait(false);
+
+                DeleteResult result = await client.Object.DeleteMultipleAsync(
+                    _SyntheticBucketName,
+                    new[] { keyA, keyB },
+                    token: ct).ConfigureAwait(false);
+
+                AssertEqual(2, result.Deleted.Count, "deleted object count (keys overload)");
+                AssertEqual(0, result.Errors.Count, "delete error count (keys overload)");
+                AssertFalse(server.ObjectExists(_SyntheticBucketName, keyA), "keyA should be removed via the keys overload.");
+                AssertFalse(server.ObjectExists(_SyntheticBucketName, keyB), "keyB should be removed via the keys overload.");
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task TestSyntheticObjectDeleteMultiplePartialFailureAsync(RequestTransportMode mode, CancellationToken cancellationToken)
+        {
+            await ExecuteWithSyntheticClientAsync(mode, true, async (server, httpClient, client, ct) =>
+            {
+                string existingKey = GenerateObjectKey();
+                string missingKey = GenerateObjectKey();
+
+                await client.Object.WriteAsync(_SyntheticBucketName, existingKey, GetBytes("x"), "text/plain", token: ct).ConfigureAwait(false);
+
+                DeleteResult result = await client.Object.DeleteMultipleAsync(
+                    _SyntheticBucketName,
+                    new[] { existingKey, missingKey },
+                    token: ct).ConfigureAwait(false);
+
+                AssertEqual(1, result.Deleted.Count, "partial-failure deleted count");
+                AssertEqual(1, result.Errors.Count, "partial-failure error count");
+                AssertEqual(existingKey, result.Deleted[0].Key, "partial-failure deleted key");
+                AssertEqual(missingKey, result.Errors[0].Key, "partial-failure errored key");
+                AssertEqual(ErrorCode.NoSuchKey.ToString(), result.Errors[0].Code, "partial-failure error code");
+                AssertFalse(server.ObjectExists(_SyntheticBucketName, existingKey), "The existing key should be removed even when another key fails.");
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task TestSyntheticObjectDeleteMultipleQuietAsync(RequestTransportMode mode, CancellationToken cancellationToken)
+        {
+            await ExecuteWithSyntheticClientAsync(mode, true, async (server, httpClient, client, ct) =>
+            {
+                string keyA = GenerateObjectKey();
+                string keyB = GenerateObjectKey();
+
+                await client.Object.WriteAsync(_SyntheticBucketName, keyA, GetBytes("a"), "text/plain", token: ct).ConfigureAwait(false);
+                await client.Object.WriteAsync(_SyntheticBucketName, keyB, GetBytes("b"), "text/plain", token: ct).ConfigureAwait(false);
+
+                DeleteResult result = await client.Object.DeleteMultipleAsync(
+                    _SyntheticBucketName,
+                    new[] { keyA, keyB },
+                    quiet: true,
+                    token: ct).ConfigureAwait(false);
+
+                AssertEqual(0, result.Deleted.Count, "quiet-mode deleted count");
+                AssertEqual(0, result.Errors.Count, "quiet-mode error count");
+                AssertFalse(server.ObjectExists(_SyntheticBucketName, keyA), "keyA should be removed in quiet mode.");
+                AssertFalse(server.ObjectExists(_SyntheticBucketName, keyB), "keyB should be removed in quiet mode.");
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task TestSyntheticObjectDeleteMultipleMissingBucketAsync(RequestTransportMode mode, CancellationToken cancellationToken)
+        {
+            await ExecuteWithSyntheticClientAsync(mode, true, async (server, httpClient, client, ct) =>
+            {
+                await AssertThrowsAsync<WebException>(
+                    () => client.Object.DeleteMultipleAsync(_SyntheticMissingBucketName, new[] { "one.txt", "two.txt" }, token: ct),
+                    exception => AssertWebException(exception, 404, ErrorCode.NoSuchBucket.ToString())).ConfigureAwait(false);
             }, cancellationToken).ConfigureAwait(false);
         }
 
