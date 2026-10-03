@@ -46,6 +46,7 @@ namespace Test.Shared
                     new TestCaseDescriptor(suiteId, "ObjectExistsFalse", "Object.ExistsAsync returns false for a missing object using " + modeLabel, ct => TestSyntheticObjectExistsFalseAsync(mode, ct)),
                     new TestCaseDescriptor(suiteId, "ObjectGetBytes", "Object.GetAsync returns the seeded payload using " + modeLabel, ct => TestSyntheticObjectGetBytesAsync(mode, ct)),
                     new TestCaseDescriptor(suiteId, "ObjectGetMetadata", "Object.GetMetadataAsync returns headers and metadata using " + modeLabel, ct => TestSyntheticObjectGetMetadataAsync(mode, ct)),
+                    new TestCaseDescriptor(suiteId, "ObjectGetMetadataRepeatedHeaders", "Object.GetMetadataAsync and GetAsync tolerate repeated response headers using " + modeLabel, ct => TestSyntheticObjectGetMetadataRepeatedHeadersAsync(mode, ct)),
                     new TestCaseDescriptor(suiteId, "ObjectGetMissingObject", "Object.GetAsync reports NoSuchKey using " + modeLabel, ct => TestSyntheticObjectGetMissingObjectAsync(mode, ct)),
                     new TestCaseDescriptor(suiteId, "ObjectGetMissingBucket", "Object.GetAsync reports NoSuchBucket using " + modeLabel, ct => TestSyntheticObjectGetMissingBucketAsync(mode, ct)),
                     new TestCaseDescriptor(suiteId, "ObjectGetMetadataMissingObject", "Object.GetMetadataAsync reports 404 for a missing key using " + modeLabel, ct => TestSyntheticObjectGetMetadataMissingObjectAsync(mode, ct)),
@@ -535,6 +536,31 @@ namespace Test.Shared
                 AssertEqual("text/plain", metadata.ContentType, "metadata content type");
                 AssertTrue(!String.IsNullOrWhiteSpace(metadata.ETag), "Metadata ETag should not be empty.");
                 AssertTrue(metadata.ETag.StartsWith("\"", StringComparison.Ordinal), "Metadata ETag should be quoted.");
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task TestSyntheticObjectGetMetadataRepeatedHeadersAsync(RequestTransportMode mode, CancellationToken cancellationToken)
+        {
+            await ExecuteWithSyntheticClientAsync(mode, false, async (server, httpClient, client, ct) =>
+            {
+                server.AddRepeatedObjectResponseHeader("Set-Cookie", "first=1; Path=/");
+                server.AddRepeatedObjectResponseHeader("Set-Cookie", "second=2; Path=/");
+                server.AddRepeatedObjectResponseHeader("x-amz-meta-tag", "one");
+                server.AddRepeatedObjectResponseHeader("x-amz-meta-tag", "two");
+
+                DateTime beforeRequestUtc = DateTime.UtcNow;
+                ObjectMetadata metadata = await client.Object.GetMetadataAsync(_SyntheticBucketName, _SyntheticHelloKey, token: ct).ConfigureAwait(false);
+
+                AssertEqual(_SyntheticHelloKey, metadata.Key, "metadata key");
+                AssertEqual(GetBytes(_SyntheticHelloContent).LongLength, metadata.Size, "metadata size");
+                AssertEqual("text/plain", metadata.ContentType, "metadata content type");
+                AssertTrue(!String.IsNullOrWhiteSpace(metadata.ETag), "Metadata ETag should not be empty.");
+                AssertTrue(metadata.ETag.StartsWith("\"", StringComparison.Ordinal), "Metadata ETag should be quoted.");
+                AssertFalse(metadata.ETag.Contains(","), "Metadata ETag should not absorb repeated header values.");
+                AssertTrue(metadata.LastModified.ToUniversalTime() <= beforeRequestUtc, "Metadata LastModified should be parsed from the seeded object.");
+
+                byte[] data = await client.Object.GetAsync(_SyntheticBucketName, _SyntheticHelloKey, token: ct).ConfigureAwait(false);
+                AssertByteArraysEqual(GetBytes(_SyntheticHelloContent), data, "synthetic object bytes with repeated headers");
             }, cancellationToken).ConfigureAwait(false);
         }
 

@@ -31,6 +31,7 @@ namespace Test.Shared
         private string? _LastHttpMethod = null;
         private string? _LastRawPathAndQuery = null;
         private NameValueCollection? _LastRequestHeaders = null;
+        private readonly NameValueCollection _RepeatedObjectResponseHeaders = new NameValueCollection(StringComparer.OrdinalIgnoreCase);
 
         private S3LiteSyntheticServer(int port)
         {
@@ -226,6 +227,21 @@ namespace Test.Shared
             finally
             {
                 _BucketsLock.ExitReadLock();
+            }
+        }
+
+        /// <summary>
+        /// Add a response header value emitted on object GET and HEAD responses.
+        /// Adding the same name more than once emits the header repeatedly.
+        /// </summary>
+        internal void AddRepeatedObjectResponseHeader(string name, string value)
+        {
+            if (String.IsNullOrWhiteSpace(name)) throw new ArgumentNullException(nameof(name));
+            if (value == null) throw new ArgumentNullException(nameof(value));
+
+            lock (_RepeatedObjectResponseHeaders)
+            {
+                _RepeatedObjectResponseHeaders.Add(name, value);
             }
         }
 
@@ -856,6 +872,18 @@ namespace Test.Shared
             {
                 await SendErrorAsync(context.Response, ErrorCode.NoSuchKey, "/" + bucketName + "/" + key, key, sendBody: !headOnly).ConfigureAwait(false);
                 return;
+            }
+
+            lock (_RepeatedObjectResponseHeaders)
+            {
+                foreach (string? name in _RepeatedObjectResponseHeaders.AllKeys)
+                {
+                    if (name == null) continue;
+                    string[]? values = _RepeatedObjectResponseHeaders.GetValues(name);
+                    if (values == null) continue;
+                    foreach (string value in values)
+                        context.Response.Headers.Add(name, value);
+                }
             }
 
             await WriteResponseAsync(context.Response, 200, contentType, data, !headOnly, headers).ConfigureAwait(false);

@@ -19,6 +19,11 @@ S3Lite keeps the surface area small while still covering the core bucket and obj
 - Built-in metrics and traces (BCL `Meter` / `ActivitySource` named `S3Lite`) for Prometheus, Tempo, Grafana, or any OTLP backend, with no exporter dependency
 - Multi-targeted package: `netstandard2.0`, `netstandard2.1`, `net8.0`, and `net10.0`
 
+## New in v1.3.1
+
+- Upgraded `RestWrapper` from `3.2.0` to `3.3.1`; repeated response headers are now preserved as separate values (S3Lite's single-valued header parsing is unchanged)
+- Updated test dependencies (Touchstone `0.2.0`, NUnit `5.0.0`, and related runners)
+
 ## New in v1.3.0
 
 - Added built-in observability: a client span per S3 operation with `stage:sign` / `stage:send` / `stage:response` child spans, plus duration, outcome, error-type, in-flight, per-stage, body-size, list, and batch-delete metrics on the `S3Lite` meter

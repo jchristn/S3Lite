@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.1 - 2026-10-03
+
+- Upgraded `RestWrapper` from `3.2.0` to `3.3.1` (repeated response headers such as `Set-Cookie` are preserved as separate values; `Headers[name]` / `Get(name)` still return them comma-joined)
+- Updated test dependencies: `Touchstone.Core` / `Touchstone.Cli` / `Touchstone.NunitAdapter` / `Touchstone.XunitAdapter` `0.1.12` -> `0.2.0`, `NUnit` `4.6.1` -> `5.0.0`, `NUnit.Analyzers` `4.14.0` -> `4.15.0`, `NUnit3TestAdapter` `6.2.0` -> `6.3.0`, `Microsoft.NET.Test.Sdk` `18.9.0` -> `18.10.1`, `coverlet.collector` `10.0.1` -> `10.1.0`
+- Added a synthetic test verifying `Object.GetMetadataAsync` and `Object.GetAsync` parse correctly when the server returns repeated response headers
+
 ## v1.3.0 - 2026-10-02
 
 - Added built-in observability through BCL `System.Diagnostics.Metrics.Meter` and `ActivitySource`, both named `S3Lite`, with no exporter dependency and near-zero cost when unobserved
