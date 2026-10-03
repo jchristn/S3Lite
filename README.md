@@ -16,7 +16,16 @@ S3Lite keeps the surface area small while still covering the core bucket and obj
 - Anonymous access support for public buckets
 - Caller-supplied `HttpClient` support for DI, proxying, custom handlers, and connection reuse
 - Reverse-proxy / gateway routing that keeps the SigV4 signature bound to the upstream endpoint (useful for non-standard corporate reverse proxy configurations)
+- Built-in metrics and traces (BCL `Meter` / `ActivitySource` named `S3Lite`) for Prometheus, Tempo, Grafana, or any OTLP backend, with no exporter dependency
 - Multi-targeted package: `netstandard2.0`, `netstandard2.1`, `net8.0`, and `net10.0`
+
+## New in v1.3.0
+
+- Added built-in observability: a client span per S3 operation with `stage:sign` / `stage:send` / `stage:response` child spans, plus duration, outcome, error-type, in-flight, per-stage, body-size, list, and batch-delete metrics on the `S3Lite` meter
+- Added W3C `traceparent` propagation on outbound requests (unsigned, so SigV4 is unaffected)
+- Added `TelemetrySettings` (`S3Client.Telemetry`, `WithTelemetry`) and the `S3LiteTelemetryNames` constants class
+- Added an importable Grafana dashboard at `Assets/grafana/s3lite-client.json`
+- See [TELEMETRY.md](TELEMETRY.md) for the full catalog
 
 ## New in v1.2.3
 
@@ -196,6 +205,33 @@ This is **not** a forward / HTTP (`CONNECT`) proxy. A forward proxy preserves th
 
 Thanks to `@danya02` for contributing this proxy/gateway support.
 
+## Observability
+
+S3Lite emits metrics and traces through the .NET base class library, a `Meter` and an `ActivitySource` both named `S3Lite`. It takes no dependency on any exporter and costs effectively nothing until a collector subscribes. Subscribe from your host:
+
+```csharp
+// Radiant
+settings.Sources.AddMeter(S3LiteTelemetryNames.MeterName);
+settings.Sources.AddActivitySource(S3LiteTelemetryNames.ActivitySourceName);
+
+// or the OpenTelemetry SDK
+builder.AddMeter("S3Lite");   // MeterProviderBuilder
+builder.AddSource("S3Lite");  // TracerProviderBuilder
+```
+
+Each operation produces an `S3 <Operation>` client span (for example `S3 GetObject`) with `stage:sign`, `stage:send`, and `stage:response` children, and records `s3lite.client.operation.duration`, `s3lite.client.operations` (by `outcome` and `error.type`, such as `NoSuchKey` or `SlowDown`), per-stage latency, and in-flight counts. Object keys are kept off spans unless you opt in, and they never appear on metrics.
+
+```csharp
+client.WithTelemetry(new TelemetrySettings
+{
+    Enable = true,              // master switch (default true)
+    PropagateContext = true,    // send W3C traceparent (default true)
+    IncludeObjectKeys = false   // record aws.s3.key on spans (default false)
+});
+```
+
+See [TELEMETRY.md](TELEMETRY.md) for the metrics and spans catalog, recommended alerts, and the Grafana dashboard at `Assets/grafana/s3lite-client.json`.
+
 ## Common Operations
 
 ### Service APIs
@@ -276,6 +312,7 @@ For S3-compatible platforms such as Less3, MinIO, or LocalStack, point `Hostname
 | `HttpClient` | Optional caller-supplied `HttpClient` instance |
 | `Gateway` | Optional `GatewayConfig` for reverse-proxy / gateway routing while signing for the upstream `Hostname` |
 | `Logger` | Optional request logger callback |
+| `Telemetry` | `TelemetrySettings` for metrics, traces, and context propagation (see [TELEMETRY.md](TELEMETRY.md)) |
 
 ## Error Behavior
 

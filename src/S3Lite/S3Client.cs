@@ -3,6 +3,7 @@ namespace S3Lite
     using System;
     using System.Collections.Generic;
     using System.Collections.Specialized;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -254,6 +255,25 @@ namespace S3Lite
             }
         }
 
+        /// <summary>
+        /// Telemetry settings.  Metrics and traces are emitted on the meter and activity source named
+        /// <see cref="S3LiteTelemetryNames.MeterName"/> / <see cref="S3LiteTelemetryNames.ActivitySourceName"/>
+        /// and cost effectively nothing until a collector subscribes.  Cannot be null.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when set to null.</exception>
+        public TelemetrySettings Telemetry
+        {
+            get
+            {
+                return _Telemetry;
+            }
+            set
+            {
+                if (value == null) throw new ArgumentNullException(nameof(Telemetry));
+                _Telemetry = value;
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -273,6 +293,7 @@ namespace S3Lite
         private HttpClient _HttpClient = null;
 
         private SerializationHelper _Serializer = new SerializationHelper();
+        private TelemetrySettings _Telemetry = new TelemetrySettings();
 
         #endregion
 
@@ -438,6 +459,18 @@ namespace S3Lite
         }
 
         /// <summary>
+        /// Specify telemetry settings.
+        /// </summary>
+        /// <param name="telemetry">Telemetry settings.</param>
+        /// <returns>S3Client.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="telemetry"/> is null.</exception>
+        public S3Client WithTelemetry(TelemetrySettings telemetry)
+        {
+            Telemetry = telemetry;
+            return this;
+        }
+
+        /// <summary>
         /// Enable signature debugging.
         /// </summary>
         /// <returns></returns>
@@ -569,8 +602,9 @@ namespace S3Lite
         /// <param name="req">RestRequest.</param>
         /// <param name="data">Byte array containing data.</param>
         /// <param name="token">Cancellation token.</param>
+        /// <param name="operation">Telemetry scope for the calling operation, may be null.</param>
         /// <returns>RestResponse.</returns>
-        internal async Task<RestResponse> BuildRestResponse(RestRequest req, byte[] data = null, CancellationToken token = default)
+        internal async Task<RestResponse> BuildRestResponse(RestRequest req, byte[] data = null, CancellationToken token = default, OperationScope operation = null)
         {
             string header = _Header + req.Method.ToString() + " " + req.Url + ": ";
             string timestamp = DateTime.UtcNow.ToString(Constants.TimestampFormatCompact);
@@ -601,24 +635,38 @@ namespace S3Lite
             signingHeaders = SortNameValueCollection(signingHeaders);
             req.Headers = SortNameValueCollection(req.Headers);
 
+            StageScope signStage = HasCredentials ? operation?.StartStage(S3LiteTelemetryNames.StageSign) : null;
+
             if (HasCredentials)
             {
-                V4SignatureResult signature = new V4SignatureResult(
-                    timestamp,
-                    req.Method.ToString().ToUpper(),
-                    req.Url,
-                    AccessKey,
-                    SecretKey,
-                    Region,
-                    "s3",
-                    signingHeaders,
-                    data
-                    );
+                try
+                {
+                    V4SignatureResult signature = new V4SignatureResult(
+                        timestamp,
+                        req.Method.ToString().ToUpper(),
+                        req.Url,
+                        AccessKey,
+                        SecretKey,
+                        Region,
+                        "s3",
+                        signingHeaders,
+                        data
+                        );
 
-                if (Debug.Signatures)
-                    Logger?.Invoke(_Header + Environment.NewLine + signature);
+                    if (Debug.Signatures)
+                        Logger?.Invoke(_Header + Environment.NewLine + signature);
 
-                req.Authorization.Raw = signature.AuthorizationHeader;
+                    req.Authorization.Raw = signature.AuthorizationHeader;
+                }
+                catch (Exception e)
+                {
+                    signStage?.Fail(e);
+                    throw;
+                }
+                finally
+                {
+                    signStage?.Dispose();
+                }
             }
             else
             {
@@ -660,10 +708,35 @@ namespace S3Lite
 
             RestResponse resp;
 
-            if (data == null || data.Length < 1)
-                resp = await req.SendAsync(token).ConfigureAwait(false);
-            else
-                resp = await req.SendAsync(data, token).ConfigureAwait(false);
+            using (StageScope sendStage = operation?.StartStage(S3LiteTelemetryNames.StageSend))
+            {
+                // Injected after signing so the propagation headers are never part of the SigV4 signature.
+                if (_Telemetry.Enable && _Telemetry.PropagateContext) InjectTraceContext(req, Activity.Current);
+
+                try
+                {
+                    if (data == null || data.Length < 1)
+                        resp = await req.SendAsync(token).ConfigureAwait(false);
+                    else
+                        resp = await req.SendAsync(data, token).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    sendStage?.Fail(e);
+                    throw;
+                }
+
+                if (resp == null) sendStage?.Fail(_TelemetryNoResponse);
+            }
+
+            if (resp != null && operation != null)
+            {
+                string requestId = null;
+                try { requestId = resp.Headers?.Get(Constants.HeaderAmazonRequestId); } catch (Exception) { }
+                long? requestBytes = data != null ? (long?)data.Length : 0;
+                long? responseBytes = resp.ContentLength > 0 ? (long?)resp.ContentLength : null;
+                operation.SetResponse(resp.StatusCode, requestId, requestBytes, responseBytes);
+            }
 
             if (resp != null)
             {
@@ -794,6 +867,24 @@ namespace S3Lite
         #endregion
 
         #region Private-Methods
+
+        private const string _TelemetryNoResponse = "no response";
+
+        private static void InjectTraceContext(RestRequest req, Activity activity)
+        {
+            try
+            {
+                if (activity == null || activity.IdFormat != ActivityIdFormat.W3C) return;
+                if (req.Headers == null) req.Headers = new NameValueCollection(StringComparer.InvariantCultureIgnoreCase);
+                if (!String.IsNullOrEmpty(req.Headers.Get("traceparent"))) return;
+
+                req.Headers.Set("traceparent", activity.Id);
+                if (!String.IsNullOrEmpty(activity.TraceStateString)) req.Headers.Set("tracestate", activity.TraceStateString);
+            }
+            catch (Exception)
+            {
+            }
+        }
 
         private NameValueCollection SortNameValueCollection(NameValueCollection nvc)
         {

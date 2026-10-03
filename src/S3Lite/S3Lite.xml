@@ -1256,6 +1256,22 @@
             <exception cref="T:System.ArgumentOutOfRangeException">Thrown when <paramref name="keys"/> contains more than 1000 entries.</exception>
             <exception cref="T:System.Net.WebException">Thrown when the request itself fails, for example when the bucket does not exist or access is denied.</exception>
         </member>
+        <member name="T:S3Lite.OperationScope">
+            <summary>
+            Telemetry scope for one S3 operation: a client span plus duration, outcome, and in-flight metrics.
+            All members are best-effort and never throw.  Not thread-safe; one scope per operation invocation.
+            </summary>
+        </member>
+        <member name="M:S3Lite.OperationScope.Start(S3Lite.S3Client,System.String,System.String,System.String,System.String)">
+            <summary>
+            Start a scope, or return null when telemetry is disabled or nothing is listening.
+            </summary>
+        </member>
+        <member name="M:S3Lite.OperationScope.Dispose">
+            <summary>
+            Record the end of the operation.
+            </summary>
+        </member>
         <member name="T:S3Lite.ProtocolEnum">
             <summary>
             Protocol.
@@ -1392,6 +1408,14 @@
             When non-null, the caller owns the lifetime and transport configuration.
             </summary>
         </member>
+        <member name="P:S3Lite.S3Client.Telemetry">
+            <summary>
+            Telemetry settings.  Metrics and traces are emitted on the meter and activity source named
+            <see cref="F:S3Lite.S3LiteTelemetryNames.MeterName"/> / <see cref="F:S3Lite.S3LiteTelemetryNames.ActivitySourceName"/>
+            and cost effectively nothing until a collector subscribes.  Cannot be null.
+            </summary>
+            <exception cref="T:System.ArgumentNullException">Thrown when set to null.</exception>
+        </member>
         <member name="M:S3Lite.S3Client.#ctor">
             <summary>
             Instantiate.
@@ -1493,6 +1517,14 @@
             <param name="gateway">Gateway settings, or null to disable gateway routing.</param>
             <returns>S3Client.</returns>
         </member>
+        <member name="M:S3Lite.S3Client.WithTelemetry(S3Lite.TelemetrySettings)">
+            <summary>
+            Specify telemetry settings.
+            </summary>
+            <param name="telemetry">Telemetry settings.</param>
+            <returns>S3Client.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="telemetry"/> is null.</exception>
+        </member>
         <member name="M:S3Lite.S3Client.EnableSignatureDebug">
             <summary>
             Enable signature debugging.
@@ -1526,7 +1558,7 @@
             <param name="contentType">Content type.</param>
             <returns>RestRequest.</returns>
         </member>
-        <member name="M:S3Lite.S3Client.BuildRestResponse(RestWrapper.RestRequest,System.Byte[],System.Threading.CancellationToken)">
+        <member name="M:S3Lite.S3Client.BuildRestResponse(RestWrapper.RestRequest,System.Byte[],System.Threading.CancellationToken,S3Lite.OperationScope)">
             <summary>
             Construct an authorization header (if credentials are configured) and submit RESTful request to retrieve a response.
             When no credentials are configured, the request is sent without signing (anonymous access mode).
@@ -1534,6 +1566,7 @@
             <param name="req">RestRequest.</param>
             <param name="data">Byte array containing data.</param>
             <param name="token">Cancellation token.</param>
+            <param name="operation">Telemetry scope for the calling operation, may be null.</param>
             <returns>RestResponse.</returns>
         </member>
         <member name="M:S3Lite.S3Client.Sha256(System.IO.Stream)">
@@ -1556,6 +1589,357 @@
             </summary>
             <param name="data">Byte array.</param>
             <returns>Base64-encoded MD5 digest.</returns>
+        </member>
+        <member name="T:S3Lite.S3LiteTelemetry">
+            <summary>
+            Process-wide S3Lite meter, activity source, and instruments.  Thread-safe.
+            </summary>
+        </member>
+        <member name="M:S3Lite.S3LiteTelemetry.RecordListed(S3Lite.OperationScope,System.Int32,System.Boolean)">
+            <summary>
+            Record the objects returned by one ListObjectsV2 page.
+            </summary>
+            <param name="scope">Operation scope, may be null.</param>
+            <param name="count">Objects returned.</param>
+            <param name="truncated">True when more pages remain.</param>
+        </member>
+        <member name="M:S3Lite.S3LiteTelemetry.RecordBatchDelete(S3Lite.OperationScope,System.Int32,S3Lite.ApiObjects.DeleteResult)">
+            <summary>
+            Record the per-object results of one DeleteObjects call.
+            </summary>
+            <param name="scope">Operation scope, may be null.</param>
+            <param name="requested">Objects requested.</param>
+            <param name="result">Delete result, may be null.</param>
+        </member>
+        <member name="M:S3Lite.S3LiteTelemetry.NormalizeErrorCode(System.String)">
+            <summary>
+            Map an S3 error code string to a bounded error.type label value.
+            </summary>
+            <param name="code">S3 error code, may be null.</param>
+            <returns>The recognized code, <see cref="F:S3Lite.S3LiteTelemetryNames.ErrorTypeOther"/>, or null when no code was supplied.</returns>
+        </member>
+        <member name="T:S3Lite.S3LiteTelemetryNames">
+            <summary>
+            Stable public names for every S3Lite telemetry point: the meter and activity source names, metric instrument
+            names, span names, attribute keys, and the bounded values used for operation, stage, and outcome labels.
+            These strings are a public contract consumed by collectors and Grafana dashboards.  Treat changes as breaking.
+            This class is thread-safe (immutable constants).
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.MeterName">
+            <summary>
+            Name of the <see cref="T:System.Diagnostics.Metrics.Meter"/> used by S3Lite.  Subscribe to this name to collect metrics.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.ActivitySourceName">
+            <summary>
+            Name of the <see cref="T:System.Diagnostics.ActivitySource"/> used by S3Lite.  Subscribe to this name to collect traces.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OperationDuration">
+            <summary>
+            Histogram (s): end-to-end duration of each S3 operation.  Labels: s3.operation, outcome, error.type (failures only), server.address, server.port.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.Operations">
+            <summary>
+            Counter ({operation}): completed S3 operations.  Labels: s3.operation, outcome, error.type (failures only), server.address, server.port.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.ActiveOperations">
+            <summary>
+            UpDownCounter ({operation}): S3 operations currently in flight.  Labels: s3.operation, server.address, server.port.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.StageDuration">
+            <summary>
+            Histogram (s): duration of each operation sub-stage (sign, send, response).  Labels: s3.operation, s3lite.stage, outcome.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.Stages">
+            <summary>
+            Counter ({stage}): completed operation sub-stages.  Labels: s3.operation, s3lite.stage, outcome.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.RequestBodySize">
+            <summary>
+            Histogram (By): request body size sent per operation.  Labels: s3.operation.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.ResponseBodySize">
+            <summary>
+            Histogram (By): response body size received per operation, as reported by the server.  Labels: s3.operation.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.ObjectsListed">
+            <summary>
+            Counter ({object}): objects returned by ListObjectsV2 pages.  Labels: none.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.BatchDeleteObjects">
+            <summary>
+            Counter ({object}): per-object results of DeleteObjects (batch delete).  Labels: outcome (deleted, failed), error.type (failed only).
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.BatchDeleteSize">
+            <summary>
+            Histogram ({object}): number of objects requested per DeleteObjects (batch delete) call.  Labels: none.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.BuildInfo">
+            <summary>
+            Observable gauge (no unit): constant 1 labeled with the S3Lite assembly version.  Labels: s3lite.version.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OperationSpanPrefix">
+            <summary>
+            Prefix of the client span opened for each S3 operation, for example "S3 GetObject".
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.StageSpanPrefix">
+            <summary>
+            Prefix of the internal span opened for each operation sub-stage, for example "stage:send".
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeOperation">
+            <summary>
+            Attribute: logical S3 operation name (see the Operation* constants).
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeOutcome">
+            <summary>
+            Attribute: operation outcome (see the Outcome* constants).
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeErrorType">
+            <summary>
+            Attribute: bounded error classifier.  An S3 error code (for example NoSuchKey), an HTTP status code, or an exception type name.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeStage">
+            <summary>
+            Attribute: operation sub-stage (see the Stage* constants).
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeServerAddress">
+            <summary>
+            Attribute: configured S3 endpoint hostname (not the bucket-prefixed or gateway hostname).
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeServerPort">
+            <summary>
+            Attribute: configured S3 endpoint port.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeRpcSystem">
+            <summary>
+            Span attribute: RPC system, always "aws-api".
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeRpcService">
+            <summary>
+            Span attribute: RPC service, always "S3".
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeRpcMethod">
+            <summary>
+            Span attribute: RPC method, equal to the S3 operation name.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeHttpMethod">
+            <summary>
+            Span attribute: HTTP request method.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeHttpStatusCode">
+            <summary>
+            Span attribute: HTTP response status code.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeUrlScheme">
+            <summary>
+            Span attribute: URL scheme (http or https).
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeBucket">
+            <summary>
+            Span attribute: bucket name.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeKey">
+            <summary>
+            Span attribute: object key.  Only recorded when <see cref="P:S3Lite.TelemetrySettings.IncludeObjectKeys"/> is true.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeRequestId">
+            <summary>
+            Span attribute: S3 request ID returned in the x-amz-request-id response header.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeS3ErrorCode">
+            <summary>
+            Span attribute: S3 error code parsed from the error response body.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeRequestBodySize">
+            <summary>
+            Span attribute: request body size in bytes.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeResponseBodySize">
+            <summary>
+            Span attribute: response body size in bytes.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeRequestStyle">
+            <summary>
+            Span attribute: request style (PathStyle or VirtualHostedStyle).
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeAuthMode">
+            <summary>
+            Span attribute: authentication mode (signed or anonymous).
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeGateway">
+            <summary>
+            Span attribute: true when the request is routed through a <see cref="T:S3Lite.GatewayConfig"/>.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeDeleteRequested">
+            <summary>
+            Span attribute: number of objects requested in a DeleteObjects call.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeDeleteDeleted">
+            <summary>
+            Span attribute: number of objects reported deleted by a DeleteObjects call.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeDeleteFailed">
+            <summary>
+            Span attribute: number of objects reported failed by a DeleteObjects call.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeListCount">
+            <summary>
+            Span attribute: number of objects returned by a ListObjectsV2 page.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeListTruncated">
+            <summary>
+            Span attribute: true when a ListObjectsV2 page is truncated (more pages remain).
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.AttributeVersion">
+            <summary>
+            Metric attribute: S3Lite assembly version (build info only).
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OperationListBuckets">
+            <summary>
+            Operation: Service.ListBucketsAsync.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OperationHeadBucket">
+            <summary>
+            Operation: Bucket.ExistsAsync.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OperationListObjects">
+            <summary>
+            Operation: Bucket.ListAsync.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OperationCreateBucket">
+            <summary>
+            Operation: Bucket.WriteAsync.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OperationDeleteBucket">
+            <summary>
+            Operation: Bucket.DeleteAsync.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OperationHeadObject">
+            <summary>
+            Operation: Object.ExistsAsync and Object.GetMetadataAsync.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OperationGetObject">
+            <summary>
+            Operation: Object.GetAsync.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OperationPutObject">
+            <summary>
+            Operation: Object.WriteAsync.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OperationDeleteObject">
+            <summary>
+            Operation: Object.DeleteAsync.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OperationDeleteObjects">
+            <summary>
+            Operation: Object.DeleteMultipleAsync.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.StageSign">
+            <summary>
+            Stage: computing the SigV4 signature (skipped in anonymous mode).
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.StageSend">
+            <summary>
+            Stage: sending the HTTP request and receiving response headers.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.StageResponse">
+            <summary>
+            Stage: reading and deserializing the response body.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OutcomeSuccess">
+            <summary>
+            Outcome: the operation succeeded.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OutcomeNotFound">
+            <summary>
+            Outcome: an existence check returned 404 (an expected, non-error result).
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OutcomeError">
+            <summary>
+            Outcome: the operation failed (HTTP error, connection failure, or exception).
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OutcomeCancelled">
+            <summary>
+            Outcome: the operation was cancelled by the caller.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OutcomeDeleted">
+            <summary>
+            Batch delete outcome: the object was deleted.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.OutcomeFailed">
+            <summary>
+            Batch delete outcome: the object could not be deleted.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.ErrorTypeNoResponse">
+            <summary>
+            error.type value used when no response was received from the server.
+            </summary>
+        </member>
+        <member name="F:S3Lite.S3LiteTelemetryNames.ErrorTypeOther">
+            <summary>
+            error.type value used for an S3 error code that S3Lite does not recognize (keeps the label bounded).
+            </summary>
         </member>
         <member name="T:S3Lite.SerializationHelper">
             <summary>
@@ -1651,6 +2035,60 @@
         <member name="F:S3Lite.SignatureVersionEnum.Version4">
             <summary>
             Version 4.
+            </summary>
+        </member>
+        <member name="T:S3Lite.StageScope">
+            <summary>
+            Telemetry scope for one sub-stage of an S3 operation: a "stage:&lt;name&gt;" child span plus per-stage
+            duration and outcome metrics.  All members are best-effort and never throw.  Not thread-safe.
+            </summary>
+        </member>
+        <member name="M:S3Lite.StageScope.Dispose">
+            <summary>
+            Record the end of the stage.
+            </summary>
+        </member>
+        <member name="T:S3Lite.TelemetrySettings">
+            <summary>
+            Per-client telemetry settings.  S3Lite emits metrics and traces through the BCL <c>Meter</c> and
+            <c>ActivitySource</c> named <see cref="F:S3Lite.S3LiteTelemetryNames.MeterName"/> and
+            <see cref="F:S3Lite.S3LiteTelemetryNames.ActivitySourceName"/>.  Emission is on by default and costs effectively nothing
+            until a collector subscribes to those names.  Instances are not thread-safe for concurrent mutation; configure
+            before issuing requests.
+            </summary>
+        </member>
+        <member name="P:S3Lite.TelemetrySettings.Enable">
+            <summary>
+            Master switch.  When false, the client emits no metrics, spans, or propagation headers.  Default is true.
+            </summary>
+        </member>
+        <member name="P:S3Lite.TelemetrySettings.EnableMetrics">
+            <summary>
+            Emit metrics on the S3Lite meter.  Ignored when <see cref="P:S3Lite.TelemetrySettings.Enable"/> is false.  Default is true.
+            </summary>
+        </member>
+        <member name="P:S3Lite.TelemetrySettings.EnableTraces">
+            <summary>
+            Emit spans on the S3Lite activity source.  Ignored when <see cref="P:S3Lite.TelemetrySettings.Enable"/> is false.  Default is true.
+            </summary>
+        </member>
+        <member name="P:S3Lite.TelemetrySettings.PropagateContext">
+            <summary>
+            Inject the W3C <c>traceparent</c> and <c>tracestate</c> headers of the current activity into outbound
+            requests.  The headers are added after signing, so they are not part of the SigV4 signature.
+            Ignored when <see cref="P:S3Lite.TelemetrySettings.Enable"/> is false.  Default is true.
+            </summary>
+        </member>
+        <member name="P:S3Lite.TelemetrySettings.IncludeObjectKeys">
+            <summary>
+            Record object keys (<c>aws.s3.key</c>) and exception messages (which embed request URLs) on spans.
+            Object keys can carry user data, so this is off by default.  Keys are never recorded on metrics.
+            Default is false.
+            </summary>
+        </member>
+        <member name="M:S3Lite.TelemetrySettings.#ctor">
+            <summary>
+            Instantiate with defaults (enabled, metrics and traces on, propagation on, object keys off).
             </summary>
         </member>
     </members>

@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.0 - 2026-10-02
+
+- Added built-in observability through BCL `System.Diagnostics.Metrics.Meter` and `ActivitySource`, both named `S3Lite`, with no exporter dependency and near-zero cost when unobserved
+- Added an `S3 <Operation>` client span per operation with `stage:sign`, `stage:send`, and `stage:response` child spans, explicit status, exception events, `aws.request_id`, and S3 error codes
+- Added metrics: `s3lite.client.operation.duration`, `s3lite.client.operations`, `s3lite.client.active_operations`, `s3lite.client.stage.duration`, `s3lite.client.stages`, `s3lite.client.request.body.size`, `s3lite.client.response.body.size`, `s3lite.client.objects.listed`, `s3lite.client.batch_delete.objects`, `s3lite.client.batch_delete.size`, and `s3lite.build.info`
+- Added W3C `traceparent` / `tracestate` injection on outbound requests, applied after signing so SigV4 is unaffected
+- Added `TelemetrySettings` (`Enable`, `EnableMetrics`, `EnableTraces`, `PropagateContext`, `IncludeObjectKeys`), `S3Client.Telemetry`, `S3Client.WithTelemetry`, and the `S3LiteTelemetryNames` constants class
+- Added `System.Diagnostics.DiagnosticSource` 10.0.12 as a dependency for the `netstandard2.0` and `netstandard2.1` targets only
+- Added `TELEMETRY.md` and an importable Grafana dashboard at `Assets/grafana/s3lite-client.json`
+- Added a Touchstone `Telemetry` suite covering every operation, outcome, failure path, propagation, toggles, and label cardinality
+
 ## v1.2.3 - 2026-08-30
 
 - Added `Object.DeleteMultipleAsync` for S3 batch delete (`POST /{bucket}?delete`) with a `Content-MD5` header

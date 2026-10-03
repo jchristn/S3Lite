@@ -66,34 +66,47 @@
 
             string url = _Client.BuildUrl(bucket, key, versionId);
 
-            using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Head, url))
+            using (OperationScope op = OperationScope.Start(_Client, S3LiteTelemetryNames.OperationHeadObject, "HEAD", bucket, key))
             {
-                _Client.Logger?.Invoke(_Header + "HEAD " + url);
-                req.Headers = headers;
-
-                using (RestResponse resp = await _Client.BuildRestResponse(req, null, token).ConfigureAwait(false))
+                try
                 {
-                    if (resp == null)
+                    using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Head, url))
                     {
-                        _Client.Logger?.Invoke(header + "no response from " + url);
-                        throw new WebException(Constants.NoRestResponseExceptionMessage + url);
+                        _Client.Logger?.Invoke(_Header + "HEAD " + url);
+                        req.Headers = headers;
+
+                        using (RestResponse resp = await _Client.BuildRestResponse(req, null, token, op).ConfigureAwait(false))
+                        {
+                            if (resp == null)
+                            {
+                                _Client.Logger?.Invoke(header + "no response from " + url);
+                                throw new WebException(Constants.NoRestResponseExceptionMessage + url);
+                            }
+                            else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
+                            {
+                                _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
+                                op?.Succeed();
+                                return true;
+                            }
+                            else if (resp.StatusCode == 404)
+                            {
+                                _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
+                                op?.NotFound();
+                                return false;
+                            }
+                            else
+                            {
+                                _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
+                                WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
+                                throw e;
+                            }
+                        }
                     }
-                    else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
-                    {
-                        _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
-                        return true;
-                    }
-                    else if (resp.StatusCode == 404)
-                    {
-                        _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
-                        return false;
-                    }
-                    else
-                    {
-                        _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
-                        WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
-                        throw e;
-                    }
+                }
+                catch (Exception e)
+                {
+                    op?.Fail(e);
+                    throw;
                 }
             }
         }
@@ -121,43 +134,55 @@
 
             string url = _Client.BuildUrl(bucket, key, versionId);
 
-            using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Head, url))
+            using (OperationScope op = OperationScope.Start(_Client, S3LiteTelemetryNames.OperationHeadObject, "HEAD", bucket, key))
             {
-                _Client.Logger?.Invoke(_Header + "HEAD " + url);
-                req.Headers = headers;
-
-                using (RestResponse resp = await _Client.BuildRestResponse(req, null, token).ConfigureAwait(false))
+                try
                 {
-                    if (resp == null)
+                    using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Head, url))
                     {
-                        _Client.Logger?.Invoke(header + "no response from " + url);
-                        throw new WebException(Constants.NoRestResponseExceptionMessage + url);
+                        _Client.Logger?.Invoke(_Header + "HEAD " + url);
+                        req.Headers = headers;
+
+                        using (RestResponse resp = await _Client.BuildRestResponse(req, null, token, op).ConfigureAwait(false))
+                        {
+                            if (resp == null)
+                            {
+                                _Client.Logger?.Invoke(header + "no response from " + url);
+                                throw new WebException(Constants.NoRestResponseExceptionMessage + url);
+                            }
+                            else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
+                            {
+                                _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
+
+                                ObjectMetadata ret = new ObjectMetadata();
+                                ret.Key = key;
+                                ret.Size = resp.ContentLength != null ? resp.ContentLength.Value : 0;
+                                ret.ContentType = resp.ContentType;
+
+                                string etag = resp.Headers.Get("etag");
+                                if (!String.IsNullOrEmpty(etag))
+                                    ret.ETag = etag;
+
+                                string lastModified = resp.Headers.Get("x-amz-meta-s3b-last-modified");
+                                if (!String.IsNullOrEmpty(lastModified))
+                                    ret.LastModified = DateTime.Parse(lastModified);
+
+                                op?.Succeed();
+                                return ret;
+                            }
+                            else
+                            {
+                                _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
+                                WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
+                                throw e;
+                            }
+                        }
                     }
-                    else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
-                    {
-                        _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
-
-                        ObjectMetadata ret = new ObjectMetadata();
-                        ret.Key = key;
-                        ret.Size = resp.ContentLength != null ? resp.ContentLength.Value : 0;
-                        ret.ContentType = resp.ContentType;
-
-                        string etag = resp.Headers.Get("etag");
-                        if (!String.IsNullOrEmpty(etag))
-                            ret.ETag = etag;
-
-                        string lastModified = resp.Headers.Get("x-amz-meta-s3b-last-modified");
-                        if (!String.IsNullOrEmpty(lastModified))
-                            ret.LastModified = DateTime.Parse(lastModified);
-
-                        return ret;
-                    }
-                    else
-                    {
-                        _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
-                        WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
-                        throw e;
-                    }
+                }
+                catch (Exception e)
+                {
+                    op?.Fail(e);
+                    throw;
                 }
             }
         }
@@ -185,29 +210,54 @@
 
             string url = _Client.BuildUrl(bucket, key, versionId);
 
-            using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Get, url))
+            using (OperationScope op = OperationScope.Start(_Client, S3LiteTelemetryNames.OperationGetObject, "GET", bucket, key))
             {
-                _Client.Logger?.Invoke(_Header + "GET " + url);
-                req.Headers = headers;
-
-                using (RestResponse resp = await _Client.BuildRestResponse(req, null, token).ConfigureAwait(false))
+                try
                 {
-                    if (resp == null)
+                    using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Get, url))
                     {
-                        _Client.Logger?.Invoke(header + "no response from " + url);
-                        throw new WebException(Constants.NoRestResponseExceptionMessage + url);
+                        _Client.Logger?.Invoke(_Header + "GET " + url);
+                        req.Headers = headers;
+
+                        using (RestResponse resp = await _Client.BuildRestResponse(req, null, token, op).ConfigureAwait(false))
+                        {
+                            if (resp == null)
+                            {
+                                _Client.Logger?.Invoke(header + "no response from " + url);
+                                throw new WebException(Constants.NoRestResponseExceptionMessage + url);
+                            }
+                            else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
+                            {
+                                _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
+                                byte[] data;
+                                using (StageScope stage = op?.StartStage(S3LiteTelemetryNames.StageResponse))
+                                {
+                                    try
+                                    {
+                                        data = resp.DataAsBytes;
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        stage?.Fail(e);
+                                        throw;
+                                    }
+                                }
+                                op?.Succeed();
+                                return data;
+                            }
+                            else
+                            {
+                                _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
+                                WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
+                                throw e;
+                            }
+                        }
                     }
-                    else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
-                    {
-                        _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
-                        return resp.DataAsBytes;
-                    }
-                    else
-                    {
-                        _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
-                        WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
-                        throw e;
-                    }
+                }
+                catch (Exception e)
+                {
+                    op?.Fail(e);
+                    throw;
                 }
             }
         }
@@ -240,30 +290,42 @@
 
             string url = _Client.BuildUrl(bucket, key, versionId);
 
-            using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Put, url))
+            using (OperationScope op = OperationScope.Start(_Client, S3LiteTelemetryNames.OperationPutObject, "PUT", bucket, key))
             {
-                _Client.Logger?.Invoke(_Header + "PUT " + url);
-                req.Headers = headers;
-                req.ContentType = contentType;
-
-                using (RestResponse resp = await _Client.BuildRestResponse(req, data, token).ConfigureAwait(false))
+                try
                 {
-                    if (resp == null)
+                    using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Put, url))
                     {
-                        _Client.Logger?.Invoke(header + "no response from " + url);
-                        throw new WebException(Constants.NoRestResponseExceptionMessage + url);
+                        _Client.Logger?.Invoke(_Header + "PUT " + url);
+                        req.Headers = headers;
+                        req.ContentType = contentType;
+
+                        using (RestResponse resp = await _Client.BuildRestResponse(req, data, token, op).ConfigureAwait(false))
+                        {
+                            if (resp == null)
+                            {
+                                _Client.Logger?.Invoke(header + "no response from " + url);
+                                throw new WebException(Constants.NoRestResponseExceptionMessage + url);
+                            }
+                            else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
+                            {
+                                _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
+                                op?.Succeed();
+                                return;
+                            }
+                            else
+                            {
+                                _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
+                                WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
+                                throw e;
+                            }
+                        }
                     }
-                    else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
-                    {
-                        _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
-                        return;
-                    }
-                    else
-                    {
-                        _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
-                        WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
-                        throw e;
-                    }
+                }
+                catch (Exception e)
+                {
+                    op?.Fail(e);
+                    throw;
                 }
             }
         }
@@ -291,29 +353,41 @@
 
             string url = _Client.BuildUrl(bucket, key, versionId);
 
-            using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Delete, url))
+            using (OperationScope op = OperationScope.Start(_Client, S3LiteTelemetryNames.OperationDeleteObject, "DELETE", bucket, key))
             {
-                _Client.Logger?.Invoke(_Header + "DELETE " + url);
-                req.Headers = headers;
-
-                using (RestResponse resp = await _Client.BuildRestResponse(req, null, token).ConfigureAwait(false))
+                try
                 {
-                    if (resp == null)
+                    using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Delete, url))
                     {
-                        _Client.Logger?.Invoke(header + "no response from " + url);
-                        throw new WebException(Constants.NoRestResponseExceptionMessage + url);
+                        _Client.Logger?.Invoke(_Header + "DELETE " + url);
+                        req.Headers = headers;
+
+                        using (RestResponse resp = await _Client.BuildRestResponse(req, null, token, op).ConfigureAwait(false))
+                        {
+                            if (resp == null)
+                            {
+                                _Client.Logger?.Invoke(header + "no response from " + url);
+                                throw new WebException(Constants.NoRestResponseExceptionMessage + url);
+                            }
+                            else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
+                            {
+                                _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
+                                op?.Succeed();
+                                return;
+                            }
+                            else
+                            {
+                                _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
+                                WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
+                                throw e;
+                            }
+                        }
                     }
-                    else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
-                    {
-                        _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
-                        return;
-                    }
-                    else
-                    {
-                        _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
-                        WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
-                        throw e;
-                    }
+                }
+                catch (Exception e)
+                {
+                    op?.Fail(e);
+                    throw;
                 }
             }
         }
@@ -364,40 +438,66 @@
             byte[] body = Encoding.UTF8.GetBytes(_Client.Serializer.SerializeXml(request));
             string contentMd5 = _Client.Md5Base64(body);
 
-            using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Post, url))
+            using (OperationScope op = OperationScope.Start(_Client, S3LiteTelemetryNames.OperationDeleteObjects, "POST", bucket, null))
             {
-                _Client.Logger?.Invoke(_Header + "POST " + url);
-
-                if (req.Headers == null) req.Headers = new NameValueCollection(StringComparer.InvariantCultureIgnoreCase);
-                if (headers != null)
+                try
                 {
-                    foreach (string key in headers.AllKeys)
+                    using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Post, url))
                     {
-                        req.Headers[key] = headers[key];
+                        _Client.Logger?.Invoke(_Header + "POST " + url);
+
+                        if (req.Headers == null) req.Headers = new NameValueCollection(StringComparer.InvariantCultureIgnoreCase);
+                        if (headers != null)
+                        {
+                            foreach (string key in headers.AllKeys)
+                            {
+                                req.Headers[key] = headers[key];
+                            }
+                        }
+
+                        req.Headers[Constants.HeaderContentMd5] = contentMd5;
+                        req.ContentType = Constants.ContentTypeXml;
+
+                        using (RestResponse resp = await _Client.BuildRestResponse(req, body, token, op).ConfigureAwait(false))
+                        {
+                            if (resp == null)
+                            {
+                                _Client.Logger?.Invoke(header + "no response from " + url);
+                                throw new WebException(Constants.NoRestResponseExceptionMessage + url);
+                            }
+                            else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
+                            {
+                                _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
+                                DeleteResult result;
+                                using (StageScope stage = op?.StartStage(S3LiteTelemetryNames.StageResponse))
+                                {
+                                    try
+                                    {
+                                        result = _Client.Serializer.DeserializeXml<DeleteResult>(resp.DataAsString);
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        stage?.Fail(e);
+                                        throw;
+                                    }
+                                }
+                                S3LiteTelemetry.RecordBatchDelete(op, objectList.Count, result);
+                                op?.Succeed();
+                                return result;
+                            }
+                            else
+                            {
+                                _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
+                                WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
+                                throw e;
+                            }
+                        }
                     }
                 }
-
-                req.Headers[Constants.HeaderContentMd5] = contentMd5;
-                req.ContentType = Constants.ContentTypeXml;
-
-                using (RestResponse resp = await _Client.BuildRestResponse(req, body, token).ConfigureAwait(false))
+                catch (Exception e)
                 {
-                    if (resp == null)
-                    {
-                        _Client.Logger?.Invoke(header + "no response from " + url);
-                        throw new WebException(Constants.NoRestResponseExceptionMessage + url);
-                    }
-                    else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
-                    {
-                        _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
-                        return _Client.Serializer.DeserializeXml<DeleteResult>(resp.DataAsString);
-                    }
-                    else
-                    {
-                        _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
-                        WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
-                        throw e;
-                    }
+                    op?.Fail(e);
+                    throw;
                 }
             }
         }

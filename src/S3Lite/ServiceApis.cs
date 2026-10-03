@@ -55,29 +55,54 @@ namespace S3Lite
 
             string url = _Client.BuildUrl();
 
-            using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Get, url))
+            using (OperationScope op = OperationScope.Start(_Client, S3LiteTelemetryNames.OperationListBuckets, "GET", null, null))
             {
-                _Client.Logger?.Invoke(_Header + "GET " + url);
-                req.Headers = headers;
-
-                using (RestResponse resp = await _Client.BuildRestResponse(req, null, token).ConfigureAwait(false))
+                try
                 {
-                    if (resp == null)
+                    using (RestRequest req = _Client.BuildRestRequest(HttpMethod.Get, url))
                     {
-                        _Client.Logger?.Invoke(header + "no response from " + url);
-                        throw new WebException(Constants.NoRestResponseExceptionMessage + url);
+                        _Client.Logger?.Invoke(_Header + "GET " + url);
+                        req.Headers = headers;
+
+                        using (RestResponse resp = await _Client.BuildRestResponse(req, null, token, op).ConfigureAwait(false))
+                        {
+                            if (resp == null)
+                            {
+                                _Client.Logger?.Invoke(header + "no response from " + url);
+                                throw new WebException(Constants.NoRestResponseExceptionMessage + url);
+                            }
+                            else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
+                            {
+                                _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
+                                ListAllMyBucketsResult result;
+                                using (StageScope stage = op?.StartStage(S3LiteTelemetryNames.StageResponse))
+                                {
+                                    try
+                                    {
+                                        result = _Client.Serializer.DeserializeXml<ListAllMyBucketsResult>(resp.DataAsString);
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        stage?.Fail(e);
+                                        throw;
+                                    }
+                                }
+                                op?.Succeed();
+                                return result;
+                            }
+                            else
+                            {
+                                _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
+                                WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
+                                throw e;
+                            }
+                        }
                     }
-                    else if (resp.StatusCode >= 200 && resp.StatusCode <= 299)
-                    {
-                        _Client.Logger?.Invoke(header + resp.StatusCode + " response from " + url);
-                        return _Client.Serializer.DeserializeXml<ListAllMyBucketsResult>(resp.DataAsString);
-                    }
-                    else
-                    {
-                        _Client.Logger?.Invoke(header + "request failed" + Environment.NewLine + resp.DataAsString);
-                        WebException e = _Client.WebExceptionBuilder(resp.StatusCode, url, null, resp.DataAsString);
-                        throw e;
-                    }
+                }
+                catch (Exception e)
+                {
+                    op?.Fail(e);
+                    throw;
                 }
             }
         }

@@ -33,6 +33,7 @@ namespace Test.Shared
                     BuildSyntheticAnonymousSuite(RequestTransportMode.External),
                     BuildSyntheticAuthenticatedSuite(RequestTransportMode.Internal),
                     BuildSyntheticAuthenticatedSuite(RequestTransportMode.External),
+                    BuildTelemetrySuite(),
                     BuildConnectivitySuite(settings),
                     BuildObjectLifecycleSuite(settings)
                 };
